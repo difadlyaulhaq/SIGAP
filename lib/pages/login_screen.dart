@@ -1,83 +1,370 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // Ganti dengan rute yang benar
+import 'package:rescuein/pages/signup_screen.dart';
+import 'home_screen.dart';
+import '../theme/theme.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: AppDurations.splash,
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    setState(() => _isLoading = true);
+
+    // Simulasi proses login
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: AppDurations.medium,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: surfaceColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Ganti dengan logo Anda
-              Icon(Icons.healing, size: 80, color: Colors.redAccent),
-              const SizedBox(height: 16),
-              Text(
-                'Selamat Datang',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Masuk untuk mengakses fitur pertolongan pertama',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  // Navigasi ke Home Screen setelah login berhasil
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => HomeScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Masuk', style: TextStyle(fontSize: 16, color: Colors.white)),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text("Belum punya akun?"),
-                  TextButton(
-                    onPressed: () { /* Navigasi ke halaman registrasi */ },
-                    child: Text('Daftar Sekarang', style: TextStyle(color: Colors.redAccent)),
-                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Logo dan Header
+                  _buildHeader(),
+
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Form Login
+                  _buildLoginForm(),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Login Button
+                  _buildLoginButton(),
+
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Forgot Password
+                  _buildForgotPassword(),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Divider
+                  _buildDivider(),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Register Link
+                  _buildRegisterLink(),
                 ],
-              )
-            ],
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: primaryGradient,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [cardShadow],
+          ),
+          child: Icon(
+            Icons.medical_services_rounded,
+            size: 50,
+            color: whiteColor,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Selamat Datang Kembali',
+          style: headingLargeTextStyle,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Masuk untuk mengakses fitur pertolongan pertama\ndan konsultasi kesehatan',
+          style: bodyMediumTextStyle.copyWith(
+            color: textSecondaryColor,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: largeRadius,
+        boxShadow: [lightShadow],
+      ),
+      child: Column(
+        children: [
+          // Email Field
+          _buildTextField(
+            controller: _emailController,
+            label: 'Email',
+            hint: 'Masukkan email Anda',
+            prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // Password Field
+          _buildTextField(
+            controller: _passwordController,
+            label: 'Password',
+            hint: 'Masukkan password Anda',
+            prefixIcon: Icons.lock_outline,
+            isPassword: true,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                color: textTertiaryColor,
+              ),
+              onPressed: () {
+                setState(() => _isPasswordVisible = !_isPasswordVisible);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData prefixIcon,
+    TextInputType? keyboardType,
+    bool isPassword = false,
+    Widget? suffixIcon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            color: textPrimaryColor,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword && !_isPasswordVisible,
+          keyboardType: keyboardType,
+          style: bodyLargeTextStyle,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: bodyMediumTextStyle.copyWith(color: textTertiaryColor),
+            prefixIcon: Icon(prefixIcon, color: textTertiaryColor),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: backgroundLight,
+            border: OutlineInputBorder(
+              borderRadius: mediumRadius,
+              borderSide: BorderSide(color: borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: mediumRadius,
+              borderSide: BorderSide(color: borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: mediumRadius,
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: primaryGradient,
+        ),
+        borderRadius: mediumRadius,
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+        ),
+        child: _isLoading
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: whiteColor,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text('Masuk', style: buttonLargeTextStyle),
+      ),
+    );
+  }
+
+  Widget _buildForgotPassword() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () {
+          // Handle forgot password
+        },
+        child: Text(
+          'Lupa Password?',
+          style: bodyMediumTextStyle.copyWith(
+            color: primaryColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: borderColor, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Text(
+            'ATAU',
+            style: bodySmallTextStyle.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: borderColor, thickness: 1)),
+      ],
+    );
+  }
+
+  Widget _buildRegisterLink() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: secondaryColor.withOpacity(0.1),
+        borderRadius: mediumRadius,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Belum punya akun? ',
+            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+          ),
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const SignupScreen()),
+              );
+            },
+            child: Text(
+              'Daftar Sekarang',
+              style: bodyMediumTextStyle.copyWith(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
