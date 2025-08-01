@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-// Sesuaikan path impor tema Anda
-import '../theme/theme.dart';
+import 'package:url_launcher/url_launcher.dart'; // <-- Impor plugin baru
+import '../theme/theme.dart'; // Sesuaikan path impor tema Anda
 
 // Impor halaman lain
 import 'wound_detection_screen.dart';
@@ -9,7 +9,7 @@ import 'chatbot_screen.dart';
 import 'profile_screen.dart';
 import 'articles_screen.dart';
 
-// Model internal untuk data kartu fitur
+// Model internal untuk data kartu fitur (tidak berubah)
 class _Feature {
   final IconData icon;
   final String title;
@@ -26,6 +26,7 @@ class _Feature {
   });
 }
 
+// HomeScreen dan _HomeScreenState (tidak berubah)
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -47,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundLight,
-      // Menggunakan IndexedStack untuk menjaga state setiap halaman
       body: IndexedStack(
         index: _pageIndex,
         children: _pages,
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Konten Halaman Utama sekarang menjadi StatefulWidget untuk menjaga state
+// Konten Halaman Utama dengan fungsionalitas baru
 class HomePageContent extends StatefulWidget {
   const HomePageContent({super.key});
 
@@ -84,47 +84,126 @@ class HomePageContent extends StatefulWidget {
   State<HomePageContent> createState() => _HomePageContentState();
 }
 
-// Gunakan AutomaticKeepAliveClientMixin untuk mencegah state hilang
 class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAliveClientMixin {
-
-  // Override wantKeepAlive dan return true agar state tidak di-dispose
   @override
   bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
-    // Panggil super.build(context) sesuai requirement mixin
     super.build(context);
-
-    final List<_Feature> features = _getFeatures(context);
-
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        // Header dinamis baru
         _buildModernHeader(context, 'Pengguna'),
-        _buildFeaturesSection(features),
+        _buildFeaturesSection(),
         _buildArticlesSection(),
         const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
       ],
     );
   }
 
-  // WIDGET BUILDER UNTUK HEADER DINAMIS SESUAI WAKTU
+  // --- FUNGSI BARU UNTUK DIALOG KONFIRMASI PANGGILAN DARURAT ---
+  Future<void> _showEmergencyCallConfirmation(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: largeRadius),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: warningColor),
+              const SizedBox(width: AppSpacing.sm),
+              Text('Konfirmasi', style: headingSmallTextStyle),
+            ],
+          ),
+          content: Text(
+            'Anda akan melakukan panggilan ke nomor darurat 112. Lanjutkan?',
+            style: bodyMediumTextStyle,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Batal', style: modernBlackTextStyle.copyWith(color: textSecondaryColor)),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor, // Gunakan warna error dari tema
+                shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+              ),
+              child: Text('Panggil', style: buttonMediumTextStyle),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop(); // Tutup dialog dulu
+                _makeEmergencyCall();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- FUNGSI BARU UNTUK MELAKUKAN PANGGILAN ---
+  Future<void> _makeEmergencyCall() async {
+    final Uri launchUri = Uri(scheme: 'tel', path: '112');
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tidak dapat melakukan panggilan.', style: bodyMediumTextStyle), backgroundColor: errorColor),
+      );
+    }
+  }
+
+  // --- REWRITE: Fungsi _getFeatures sekarang memanggil dialog ---
+  List<_Feature> _getFeatures(BuildContext context) {
+    return [
+      _Feature(
+        icon: Icons.camera_alt,
+        title: 'Deteksi Luka',
+        subtitle: 'Analisis luka via kamera',
+        gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)],
+        onTap: () => Navigator.pushNamed(context, '/detect'),
+      ),
+      _Feature(
+        icon: Icons.chat_bubble,
+        title: 'Chatbot',
+        subtitle: 'Tanya jawab P3K',
+        gradient: [const Color(0xFF34D399), const Color(0xFF10B981)],
+        onTap: () => Navigator.pushNamed(context, '/chatbot'),
+      ),
+      _Feature(
+        icon: Icons.local_hospital,
+        title: 'Darurat',
+        subtitle: 'Panggil bantuan cepat',
+        gradient: [const Color(0xFFF78CA0), const Color(0xFFF9748F)],
+        onTap: () => _showEmergencyCallConfirmation(context), // <-- DIUBAH DI SINI
+      ),
+      _Feature(
+        icon: Icons.article,
+        title: 'Semua Artikel',
+        subtitle: 'Lihat info kesehatan',
+        gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
+        onTap: () => Navigator.pushNamed(context, '/articles'),
+      ),
+    ];
+  }
+
+  // --- Widget Builders lainnya tidak ada perubahan signifikan ---
   Widget _buildModernHeader(BuildContext context, String userName) {
     final hour = DateTime.now().hour;
     String greeting;
     IconData greetingIcon;
 
-    // Logika untuk menentukan sapaan berdasarkan waktu
     if (hour < 12) {
-      greeting = 'Selamat Pagi'; // Ganti dengan S.of(context).good_morning jika menggunakan flutter_localizations
+      greeting = 'Selamat Pagi';
       greetingIcon = Icons.wb_sunny_rounded;
     } else if (hour < 17) {
-      greeting = 'Selamat Siang'; // Ganti dengan S.of(context).good_afternoon
+      greeting = 'Selamat Siang';
       greetingIcon = Icons.wb_sunny_outlined;
     } else {
-      greeting = 'Selamat Malam'; // Ganti dengan S.of(context).good_evening
+      greeting = 'Selamat Malam';
       greetingIcon = Icons.nights_stay_rounded;
     }
 
@@ -133,11 +212,7 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
         margin: const EdgeInsets.all(AppSpacing.lg),
         padding: const EdgeInsets.all(AppSpacing.xl),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: primaryGradient,
-          ),
+          gradient: LinearGradient(colors: primaryGradient),
           borderRadius: xxLargeRadius,
           boxShadow: [cardShadow],
         ),
@@ -152,145 +227,62 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        greeting,
-                        style: bodyMediumTextStyle.copyWith(
-                          color: whiteColor.withOpacity(0.9),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        userName,
-                        style: headingMediumTextStyle.copyWith(
-                          color: whiteColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 24,
-                        ),
-                      ),
+                      Text(greeting, style: bodyMediumTextStyle.copyWith(color: whiteColor.withOpacity(0.9))),
+                      Text(userName, style: headingMediumTextStyle.copyWith(color: whiteColor)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'Tetap tenang, kami siap membantu Anda.', // Ganti dengan S.of(context).motivational_message
-              style: bodyMediumTextStyle.copyWith(
-                color: whiteColor.withOpacity(0.9),
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
-              ),
-            ),
+            Text('Tetap tenang, kami siap membantu Anda.', style: bodyMediumTextStyle.copyWith(color: whiteColor.withOpacity(0.9))),
           ],
         ),
       ),
     );
   }
-  
-  // Kode lainnya (getFeatures, buildFeatureCard, buildArticleCard) tetap sama,
-  // namun dipisahkan menjadi sliver terpisah untuk kejelasan.
 
-  Widget _buildFeaturesSection(List<_Feature> features) {
+  Widget _buildFeaturesSection() {
+    final features = _getFeatures(context);
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      sliver: SliverMainAxisGroup(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Text('Fitur Cepat', style: headingSmallTextStyle),
-            ),
-          ),
-          SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.05,
-              crossAxisSpacing: AppSpacing.md,
-              mainAxisSpacing: AppSpacing.md,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _buildFeatureCard(context, features[index]),
-              childCount: features.length,
-            ),
-          ),
-        ],
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.05,
+          crossAxisSpacing: AppSpacing.md,
+          mainAxisSpacing: AppSpacing.md,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildFeatureCard(context, features[index]),
+          childCount: features.length,
+        ),
       ),
     );
   }
 
   Widget _buildArticlesSection() {
-     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      sliver: SliverMainAxisGroup(
-        slivers: [
-           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
-              child: Text('Artikel Terbaru', style: headingSmallTextStyle),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _buildArticleCard(context, index),
-              childCount: 5, // Tampilkan 5 artikel contoh
-            ),
-          ),
-        ],
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      sliver: SliverList.separated(
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Text('Artikel Terbaru', style: headingSmallTextStyle);
+          }
+          return _buildArticleCard(context, index - 1);
+        },
+        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+        itemCount: 6, // 1 untuk judul + 5 untuk artikel
       ),
     );
-  }
-
-  // (Sisa fungsi seperti _getFeatures, _buildFeatureCard, _buildArticleCard tidak berubah)
-  List<_Feature> _getFeatures(BuildContext context) {
-    return [
-      _Feature(
-        icon: Icons.camera_alt,
-        title: 'Deteksi Luka',
-        subtitle: 'Analisis luka via kamera',
-        gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)], // Biru
-        onTap: () => Navigator.pushNamed(context, '/detect'),
-      ),
-      _Feature(
-        icon: Icons.chat_bubble,
-        title: 'Chatbot',
-        subtitle: 'Tanya jawab P3K',
-        gradient: [const Color(0xFF34D399), const Color(0xFF10B981)], // Hijau
-        onTap: () => Navigator.pushNamed(context, '/chatbot'),
-      ),
-      _Feature(
-        icon: Icons.local_hospital,
-        title: 'Darurat',
-        subtitle: 'Panggil bantuan cepat',
-        gradient: [const Color(0xFFF78CA0), const Color(0xFFF9748F)], // Merah muda
-        onTap: () { /* Logika panggilan darurat */ },
-      ),
-      _Feature(
-        icon: Icons.article,
-        title: 'Semua Artikel',
-        subtitle: 'Lihat info kesehatan',
-        gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)], // Oranye
-        onTap: () => Navigator.pushNamed(context, '/articles'),
-      ),
-    ];
   }
 
   Widget _buildFeatureCard(BuildContext context, _Feature feature) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: feature.gradient,
-        ),
+        gradient: LinearGradient(colors: feature.gradient),
         borderRadius: xLargeRadius,
-        boxShadow: [
-          BoxShadow(
-            color: feature.gradient.first.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: feature.gradient.first.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -301,21 +293,12 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Icon(feature.icon, color: whiteColor, size: 36),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  feature.title,
-                  style: buttonLargeTextStyle.copyWith(fontSize: 18),
-                  textAlign: TextAlign.center,
-                ),
+                Text(feature.title, style: buttonLargeTextStyle.copyWith(fontSize: 18), textAlign: TextAlign.center),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  feature.subtitle,
-                  style: bodySmallTextStyle.copyWith(color: whiteColor.withOpacity(0.8)),
-                  textAlign: TextAlign.center,
-                ),
+                Text(feature.subtitle, style: bodySmallTextStyle.copyWith(color: whiteColor.withOpacity(0.8)), textAlign: TextAlign.center),
               ],
             ),
           ),
@@ -327,41 +310,27 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
   Widget _buildArticleCard(BuildContext context, int index) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       shape: RoundedRectangleBorder(borderRadius: mediumRadius),
       color: cardColor,
       child: InkWell(
         borderRadius: mediumRadius,
-        onTap: () { /* Navigasi ke detail artikel */ },
+        onTap: () {},
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
               ClipRRect(
                 borderRadius: smallRadius,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  color: backgroundLight,
-                  child: Icon(Icons.image, color: textTertiaryColor.withOpacity(0.5)),
-                ),
+                child: Container(width: 80, height: 80, color: backgroundLight, child: Icon(Icons.image, color: textTertiaryColor.withOpacity(0.5))),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Tips Pertolongan Pertama untuk Luka Bakar',
-                      style: modernBlackTextStyle.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text('Tips Pertolongan Pertama untuk Luka Bakar', style: modernBlackTextStyle.copyWith(fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Kategori: P3K • 5 menit baca',
-                      style: bodySmallTextStyle,
-                    ),
+                    Text('Kategori: P3K • 5 menit baca', style: bodySmallTextStyle),
                   ],
                 ),
               ),
