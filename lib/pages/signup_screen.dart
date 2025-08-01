@@ -1085,7 +1085,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                 borderRadius: mediumRadius,
                 boxShadow: [
                   BoxShadow(
-                    color: primaryColor.withOpacity(0.3),
+                    color: primaryColor,
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),

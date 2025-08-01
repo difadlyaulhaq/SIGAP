@@ -78,7 +78,6 @@ class _WoundDetectionScreenState extends State<WoundDetectionScreen> with Automa
       await _controller!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
       setState(() => _screenState = ScreenState.ready);
     } catch (e) {
-      print("Error initializing camera: $e");
       setState(() => _screenState = ScreenState.error);
     }
   }
@@ -111,7 +110,6 @@ class _WoundDetectionScreenState extends State<WoundDetectionScreen> with Automa
         SnackBar(content: Text('Gambar berhasil diambil: ${image.path}')),
       );
     } catch (e) {
-      print(e);
     }
   }
 
@@ -171,8 +169,7 @@ class _WoundDetectionScreenState extends State<WoundDetectionScreen> with Automa
       case ScreenState.error:
         return _buildErrorUI("Gagal memuat kamera.");
       case ScreenState.loading:
-      default:
-        return _buildLoadingUI();
+      return _buildLoadingUI();
     }
   }
 
