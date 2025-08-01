@@ -4,6 +4,7 @@ import 'package:rescuein/pages/chatbot_screen.dart';
 import 'package:rescuein/pages/home_screen.dart';
 import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/pages/profile_screen.dart';
+import 'package:rescuein/pages/signup_screen.dart';
 import 'package:rescuein/pages/wound_detection_screen.dart';
      // Buat file ini
 
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
       // 3. Daftarkan semua rute (halaman) yang ada di aplikasi Anda
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/detect': (context) => const WoundDetectionScreen(),
