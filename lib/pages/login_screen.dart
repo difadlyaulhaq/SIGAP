@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rescuein/bloc/auth/auth_bloc.dart';
+import 'package:rescuein/pages/home_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
-import 'home_screen.dart';
-import '../theme/theme.dart';
+import 'package:rescuein/theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,12 +12,12 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-  bool _isLoading = false;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -32,13 +34,12 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _animationController.forward();
   }
@@ -51,23 +52,14 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    setState(() => _isLoading = true);
-
-    // Simulasi proses login
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: AppDurations.medium,
-        ),
-      );
+  void _handleLogin() {
+    if (_formKey.currentState!.validate()) {
+      context.read<AuthBloc>().add(
+            AuthLoginRequested(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            ),
+          );
     }
   }
 
@@ -75,46 +67,49 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: surfaceColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppSpacing.xxl),
-
-                  // Logo dan Header
-                  _buildHeader(),
-
-                  const SizedBox(height: AppSpacing.xxl),
-
-                  // Form Login
-                  _buildLoginForm(),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Login Button
-                  _buildLoginButton(),
-
-                  const SizedBox(height: AppSpacing.md),
-
-                  // Forgot Password
-                  _buildForgotPassword(),
-
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Divider
-                  _buildDivider(),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Register Link
-                  _buildRegisterLink(),
-                ],
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthAuthenticated) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else if (state is AuthFailure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: errorColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.xxl),
+                      _buildHeader(),
+                      const SizedBox(height: AppSpacing.xxl),
+                      _buildLoginForm(),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildLoginButton(),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildForgotPassword(),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildDivider(),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildRegisterLink(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -138,25 +133,14 @@ class _LoginScreenState extends State<LoginScreen>
             borderRadius: BorderRadius.circular(25),
             boxShadow: [cardShadow],
           ),
-          child: Icon(
-            Icons.medical_services_rounded,
-            size: 50,
-            color: whiteColor,
-          ),
+          child: Icon(Icons.medical_services_rounded, size: 50, color: whiteColor),
         ),
         const SizedBox(height: AppSpacing.md),
-        Text(
-          'Selamat Datang Kembali',
-          style: headingLargeTextStyle,
-          textAlign: TextAlign.center,
-        ),
+        Text('Selamat Datang Kembali', style: headingLargeTextStyle),
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Masuk untuk mengakses fitur pertolongan pertama\ndan konsultasi kesehatan',
-          style: bodyMediumTextStyle.copyWith(
-            color: textSecondaryColor,
-            height: 1.5,
-          ),
+          style: bodyMediumTextStyle.copyWith(color: textSecondaryColor, height: 1.5),
           textAlign: TextAlign.center,
         ),
       ],
@@ -173,18 +157,20 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       child: Column(
         children: [
-          // Email Field
           _buildTextField(
             controller: _emailController,
             label: 'Email',
             hint: 'Masukkan email Anda',
             prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.isEmpty || !value.contains('@')) {
+                return 'Masukkan format email yang valid';
+              }
+              return null;
+            },
           ),
-
           const SizedBox(height: AppSpacing.md),
-
-          // Password Field
           _buildTextField(
             controller: _passwordController,
             label: 'Password',
@@ -200,6 +186,12 @@ class _LoginScreenState extends State<LoginScreen>
                 setState(() => _isPasswordVisible = !_isPasswordVisible);
               },
             ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Password tidak boleh kosong';
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -214,16 +206,14 @@ class _LoginScreenState extends State<LoginScreen>
     TextInputType? keyboardType,
     bool isPassword = false,
     Widget? suffixIcon,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: bodyMediumTextStyle.copyWith(
-            fontWeight: FontWeight.w600,
-            color: textPrimaryColor,
-          ),
+          style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600, color: textPrimaryColor),
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
@@ -231,6 +221,7 @@ class _LoginScreenState extends State<LoginScreen>
           obscureText: isPassword && !_isPasswordVisible,
           keyboardType: keyboardType,
           style: bodyLargeTextStyle,
+          validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: bodyMediumTextStyle.copyWith(color: textTertiaryColor),
@@ -238,22 +229,10 @@ class _LoginScreenState extends State<LoginScreen>
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: backgroundLight,
-            border: OutlineInputBorder(
-              borderRadius: mediumRadius,
-              borderSide: BorderSide(color: borderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: mediumRadius,
-              borderSide: BorderSide(color: borderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: mediumRadius,
-              borderSide: BorderSide(color: primaryColor, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.md,
-            ),
+            border: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
+            focusedBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: primaryColor, width: 2)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
           ),
         ),
       ],
@@ -261,41 +240,43 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginButton() {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: primaryGradient,
-        ),
-        borderRadius: mediumRadius,
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
+        return Container(
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: primaryGradient,
+            ),
+            borderRadius: mediumRadius,
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: mediumRadius),
-        ),
-        child: _isLoading
-            ? SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: whiteColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text('Masuk', style: buttonLargeTextStyle),
-      ),
+          child: ElevatedButton(
+            onPressed: isLoading ? null : _handleLogin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: whiteColor, strokeWidth: 2),
+                  )
+                : Text('Masuk', style: buttonLargeTextStyle),
+          ),
+        );
+      },
     );
   }
 
@@ -308,10 +289,7 @@ class _LoginScreenState extends State<LoginScreen>
         },
         child: Text(
           'Lupa Password?',
-          style: bodyMediumTextStyle.copyWith(
-            color: primaryColor,
-            fontWeight: FontWeight.w600,
-          ),
+          style: bodyMediumTextStyle.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -323,13 +301,7 @@ class _LoginScreenState extends State<LoginScreen>
         Expanded(child: Divider(color: borderColor, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            'ATAU',
-            style: bodySmallTextStyle.copyWith(
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-            ),
-          ),
+          child: Text('ATAU', style: bodySmallTextStyle.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1)),
         ),
         Expanded(child: Divider(color: borderColor, thickness: 1)),
       ],
@@ -346,10 +318,7 @@ class _LoginScreenState extends State<LoginScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Belum punya akun? ',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
-          ),
+          Text('Belum punya akun? ', style: bodyMediumTextStyle.copyWith(color: textSecondaryColor)),
           GestureDetector(
             onTap: () {
               Navigator.of(context).push(
@@ -358,10 +327,7 @@ class _LoginScreenState extends State<LoginScreen>
             },
             child: Text(
               'Daftar Sekarang',
-              style: bodyMediumTextStyle.copyWith(
-                color: primaryColor,
-                fontWeight: FontWeight.w600,
-              ),
+              style: bodyMediumTextStyle.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
             ),
           ),
         ],
