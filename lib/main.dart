@@ -11,16 +11,16 @@ import 'package:rescuein/pages/profile_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
 import 'package:rescuein/pages/wound_detection_screen.dart';
 import 'package:rescuein/theme/theme.dart';
-import 'firebase_options.dart'; // File dari FlutterFire CLI
+import 'firebase_options.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   // Pastikan semua binding siap sebelum menjalankan kode async
   WidgetsFlutterBinding.ensureInitialized();
   // Inisialisasi Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
@@ -33,13 +33,17 @@ class MyApp extends StatelessWidget {
     return RepositoryProvider(
       create: (context) => AuthRepository(),
       child: BlocProvider(
-        create: (context) => AuthBloc(
-          authRepository: RepositoryProvider.of<AuthRepository>(context),
-        )..add(AuthCheckRequested()), // Memeriksa status login saat aplikasi dimulai
+        create: (context) =>
+            AuthBloc(
+              authRepository: RepositoryProvider.of<AuthRepository>(context),
+            )..add(
+              AuthCheckRequested(),
+            ), // Memeriksa status login saat aplikasi dimulai
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'RescueIn',
-          theme: ThemeData( // Menggunakan tema dari file theme.dart
+          theme: ThemeData(
+            // Menggunakan tema dari file theme.dart
             primaryColor: primaryColor,
             colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
             scaffoldBackgroundColor: backgroundLight,
@@ -93,11 +97,7 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
         // Selama proses pengecekan, tampilkan layar loading
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(), 
-          ),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }
