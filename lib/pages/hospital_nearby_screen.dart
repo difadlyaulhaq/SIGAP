@@ -35,7 +35,6 @@ const TextStyle bodySmallTextStyle = TextStyle(fontSize: 12, color: textPrimaryC
 const TextStyle modernWhiteTextStyle = TextStyle(fontSize: 16, color: Colors.white);
 final BoxShadow strongShadow = BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4));
 
-// --- MODEL BARU UNTUK MENYIMPAN INSTRUKSI LANGKAH DEMI LANGKAH ---
 class RouteStep {
   final String instruction;
   final double distance;
