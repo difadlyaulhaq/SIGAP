@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,7 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
-// Anda mungkin perlu membuat file model ini atau sesuaikan dengan struktur proyek Anda
+// Gunakan model Hospital dari file terpisah
 // import 'package:rescuein/models/hospital.dart';
 // import '../theme/theme.dart';
 
@@ -55,7 +57,7 @@ class HospitalNearbyPage extends StatefulWidget {
 }
 
 class _HospitalNearbyPageState extends State<HospitalNearbyPage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -81,15 +83,41 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   String _totalRouteDuration = "";
   double _distanceToNextStep = 0.0;
 
+  // --- Animation Controllers untuk smooth movement ---
+  late AnimationController _mapAnimationController;
+  late AnimationController _rotationAnimationController;
+  Animation<double>? _latAnimation;
+  Animation<double>? _lngAnimation;
+  Animation<double>? _rotationAnimation;
+  
+  // --- Tracking untuk smooth animation ---
+  LatLng? _lastAnimatedPosition;
+  double _currentBearing = 0.0;
+  double _targetBearing = 0.0;
+
   @override
   void initState() {
     super.initState();
+    
+    // Initialize animation controllers
+    _mapAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000), 
+      vsync: this
+    );
+    
+    _rotationAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this
+    );
+    
     _initializeScreen();
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
+    _mapAnimationController.dispose();
+    _rotationAnimationController.dispose();
     super.dispose();
   }
 
@@ -136,29 +164,140 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
 
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // Update lebih sering (per 5 meter) untuk navigasi
+      distanceFilter: 3, // Update lebih sering untuk navigasi yang smooth
     );
 
     _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
         .listen((Position position) async {
       bool isFirstUpdate = _currentPosition == null;
-      setState(() {
-        _currentPosition = position;
-      });
-
+      
       if (isFirstUpdate) {
+        setState(() => _currentPosition = position);
         _mapController.move(LatLng(position.latitude, position.longitude), 14.0);
         setState(() => _loadingMessage = "Mencari rumah sakit terdekat...");
         await _fetchAndProcessHospitals(LatLng(position.latitude, position.longitude));
-      } else if (!_isNavigating) {
-        _updateDistancesAndSort();
-        if (mounted) setState(() {});
+      } else {
+        // Smooth update position
+        await _smoothUpdatePosition(position);
+        
+        if (!_isNavigating) {
+          _updateDistancesAndSort();
+          if (mounted) setState(() {});
+        }
       }
 
       if (_isNavigating) {
         _updateNavigationState(position);
       }
     });
+  }
+
+  Future<void> _smoothUpdatePosition(Position newPosition) async {
+    final newLatLng = LatLng(newPosition.latitude, newPosition.longitude);
+    
+    // Update current position immediately for calculations
+    setState(() => _currentPosition = newPosition);
+    
+    if (_isNavigating) {
+      // Calculate bearing for navigation mode
+      if (_currentPosition != null) {
+        _targetBearing = _calculateBearing(
+          LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 
+          newLatLng
+        );
+        
+        // Smooth rotation animation
+        _animateRotation();
+      }
+      
+      // Smooth movement animation
+      await _animateMapMovement(newLatLng);
+    }
+  }
+
+  double _calculateBearing(LatLng from, LatLng to) {
+    final lat1Rad = from.latitude * (math.pi / 180);
+    final lat2Rad = to.latitude * (math.pi / 180);
+    final deltaLonRad = (to.longitude - from.longitude) * (math.pi / 180);
+
+    final x = math.sin(deltaLonRad) * math.cos(lat2Rad);
+    final y = math.cos(lat1Rad) * math.sin(lat2Rad) - 
+              math.sin(lat1Rad) * math.cos(lat2Rad) * math.cos(deltaLonRad);
+
+    final bearing = math.atan2(x, y) * (180 / math.pi);
+    return (bearing + 360) % 360; // Normalize to 0-360
+  }
+
+  void _animateRotation() {
+    if (!_isNavigating) return;
+    
+    // Calculate shortest rotation path
+    double angleDiff = _targetBearing - _currentBearing;
+    if (angleDiff > 180) angleDiff -= 360;
+    if (angleDiff < -180) angleDiff += 360;
+    
+    // Only animate if the difference is significant
+    if (angleDiff.abs() > 5) {
+      _rotationAnimation = Tween<double>(
+        begin: _currentBearing,
+        end: _targetBearing,
+      ).animate(CurvedAnimation(
+        parent: _rotationAnimationController,
+        curve: Curves.easeInOut,
+      ));
+
+      _rotationAnimationController.forward(from: 0).then((_) {
+        _currentBearing = _targetBearing;
+      });
+    }
+  }
+
+  Future<void> _animateMapMovement(LatLng newPosition) async {
+    if (_lastAnimatedPosition == null) {
+      _lastAnimatedPosition = newPosition;
+      if (_isNavigating) {
+        _mapController.move(newPosition, 18.0);
+      }
+      return;
+    }
+
+    // Setup smooth movement animation
+    _latAnimation = Tween<double>(
+      begin: _lastAnimatedPosition!.latitude,
+      end: newPosition.latitude,
+    ).animate(CurvedAnimation(
+      parent: _mapAnimationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _lngAnimation = Tween<double>(
+      begin: _lastAnimatedPosition!.longitude,
+      end: newPosition.longitude,
+    ).animate(CurvedAnimation(
+      parent: _mapAnimationController,
+      curve: Curves.easeInOut,
+    ));
+
+    // Listen to animation updates
+    late VoidCallback animationListener;
+    animationListener = () {
+      if (_latAnimation != null && _lngAnimation != null && _isNavigating) {
+        final currentAnimatedPos = LatLng(
+          _latAnimation!.value, 
+          _lngAnimation!.value
+        );
+        _mapController.move(currentAnimatedPos, 18.0);
+      }
+    };
+
+    _mapAnimationController.addListener(animationListener);
+
+    // Start animation
+    await _mapAnimationController.forward(from: 0);
+    
+    // Cleanup
+    _mapAnimationController.removeListener(animationListener);
+    _lastAnimatedPosition = newPosition;
   }
 
   Future<void> _fetchAndProcessHospitals(LatLng location) async {
@@ -223,9 +362,6 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     if (_routeSteps.isEmpty) return;
     final userLocation = LatLng(position.latitude, position.longitude);
 
-    _mapController.move(userLocation, 18.0);
-    _mapController.rotate(-position.heading);
-
     if (_currentStepIndex < _routeSteps.length - 1) {
       final nextStep = _routeSteps[_currentStepIndex + 1];
       final distanceToNextManeuver = Geolocator.distanceBetween(
@@ -287,6 +423,7 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
           _totalRouteDistance = "${((properties['distance'] as num) / 1000).toStringAsFixed(2)} km";
           _totalRouteDuration = "${((properties['duration'] as num) / 60).ceil()} menit";
           _isNavigating = true;
+          _lastAnimatedPosition = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
         });
       } else { throw Exception('Gagal memuat rute'); }
     } catch (e) {
@@ -302,11 +439,42 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
       _routePoints = [];
       _routeSteps = [];
       _currentStepIndex = 0;
+      _currentBearing = 0.0;
+      _targetBearing = 0.0;
     });
+    
+    // Reset map rotation and zoom
     if (_currentPosition != null) {
       _mapController.rotate(0);
       _mapController.move(LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 14.0);
     }
+  }
+
+  // Custom triangle marker widget for navigation
+  Widget _buildNavigationMarker() {
+    return AnimatedBuilder(
+      animation: _rotationAnimationController,
+      builder: (context, child) {
+        final rotation = _rotationAnimation?.value ?? _currentBearing;
+        
+        return Transform.rotate(
+          angle: rotation * math.pi / 180,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: Colors.blue.shade700, width: 2),
+            ),
+            child: CustomPaint(
+              painter: TrianglePainter(Colors.blue.shade700),
+              size: const Size(20, 20),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -394,14 +562,17 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
             markers: [
               Marker(
                 point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                  child: Container(
-                     decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.blue.shade800),
-                  ),
-                ),
-                width: 20, height: 20,
+                child: _isNavigating 
+                  ? _buildNavigationMarker()
+                  : Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                      child: Container(
+                         decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.blue.shade800),
+                      ),
+                    ),
+                width: _isNavigating ? 24 : 20, 
+                height: _isNavigating ? 24 : 20,
               )
             ],
           )
@@ -527,4 +698,30 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
       ),
     );
   }
+}
+
+// Custom painter untuk membuat segitiga navigasi
+class TrianglePainter extends CustomPainter {
+  final Color color;
+
+  TrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = ui.Path();
+    // Membuat segitiga yang menunjuk ke atas (utara)
+    path.moveTo(size.width / 2, size.height * 0.2); // Puncak
+    path.lineTo(size.width * 0.3, size.height * 0.8); // Kiri bawah
+    path.lineTo(size.width * 0.7, size.height * 0.8); // Kanan bawah
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
