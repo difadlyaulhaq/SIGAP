@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rescuein/bloc/auth/auth_repository.dart';
+import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
+import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
+import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
+
 import 'package:rescuein/pages/hospital_nearby_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-// Menggunakan awalan 'theme' untuk impor tema untuk menghindari konflik nama
-import '../theme/theme.dart' as theme; 
+import '../theme/theme.dart' as theme;
 
-// Impor halaman lain
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
 
-// Model internal untuk data kartu fitur
 class _Feature {
   final IconData icon;
   final String title;
@@ -26,15 +29,28 @@ class _Feature {
   });
 }
 
-// HomeScreen dan _HomeScreenState
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => ProfileBloc(
+        authRepository: context.read<AuthRepository>(),
+      )..add(FetchProfileData()),
+      child: const _HomeScreenView(),
+    );
+  }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenView extends StatefulWidget {
+  const _HomeScreenView();
+
+  @override
+  State<_HomeScreenView> createState() => _HomeScreenViewState();
+}
+
+class _HomeScreenViewState extends State<_HomeScreenView> {
   int _pageIndex = 0;
 
   final List<Widget> _pages = [
@@ -61,8 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.chat_bubble_outline, size: 30, color: Colors.white),
           Icon(Icons.person_outline, size: 30, color: Colors.white),
         ],
-        // PERBAIKAN: Menggunakan variabel dari tema dengan awalan
-        color: theme.primaryColor, 
+        color: theme.primaryColor,
         buttonBackgroundColor: theme.primaryColor,
         backgroundColor: Colors.transparent,
         animationCurve: Curves.easeInOut,
@@ -77,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Konten Halaman Utama
 class HomePageContent extends StatefulWidget {
   const HomePageContent({super.key});
 
@@ -85,25 +99,37 @@ class HomePageContent extends StatefulWidget {
   State<HomePageContent> createState() => _HomePageContentState();
 }
 
-class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAliveClientMixin {
+class _HomePageContentState extends State<HomePageContent>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        _buildModernHeader(context, 'Pengguna'),
-        _buildFeaturesSection(),
-        _buildArticlesSection(),
-        const SliverToBoxAdapter(child: SizedBox(height: theme.AppSpacing.xxl)),
-      ],
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        String userName = 'Pengguna';
+        if (state is ProfileLoaded) {
+          userName = state.user.nama.split(' ').first;
+        } else if (state is ProfileFailure) {
+          userName = 'Tamu';
+        }
+
+        return CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            _buildModernHeader(context, userName),
+            _buildFeaturesSection(),
+            _buildArticlesSection(),
+            const SliverToBoxAdapter(
+                child: SizedBox(height: theme.AppSpacing.xxl)),
+          ],
+        );
+      },
     );
   }
 
-  // Dialog konfirmasi panggilan darurat
   Future<void> _showEmergencyCallConfirmation(BuildContext context) async {
     return showDialog<void>(
       context: context,
@@ -123,14 +149,16 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('Batal', style: theme.modernBlackTextStyle.copyWith(color: theme.textSecondaryColor)),
+              child: Text('Batal',
+                  style: theme.modernBlackTextStyle
+                      .copyWith(color: theme.textSecondaryColor)),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.errorColor, 
+                backgroundColor: theme.errorColor,
                 shape: RoundedRectangleBorder(borderRadius: theme.mediumRadius),
               ),
               child: Text('Panggil', style: theme.buttonMediumTextStyle),
@@ -145,21 +173,22 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
     );
   }
 
-  // Fungsi untuk melakukan panggilan
   Future<void> _makeEmergencyCall() async {
     final Uri launchUri = Uri(scheme: 'tel', path: '112');
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     } else {
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tidak dapat melakukan panggilan.', style: theme.bodyMediumTextStyle), backgroundColor: theme.errorColor),
+          SnackBar(
+              content:
+                  Text('Tidak dapat melakukan panggilan.', style: theme.bodyMediumTextStyle),
+              backgroundColor: theme.errorColor),
         );
       }
     }
   }
 
-  // Fungsi untuk mendapatkan daftar fitur
   List<_Feature> _getFeatures(BuildContext context) {
     return [
       _Feature(
@@ -193,7 +222,6 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
     ];
   }
 
-  // Widget builder lainnya
   Widget _buildModernHeader(BuildContext context, String userName) {
     final hour = DateTime.now().hour;
     String greeting;
@@ -230,15 +258,21 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(greeting, style: theme.bodyMediumTextStyle.copyWith(color: theme.whiteColor.withOpacity(0.9))),
-                      Text(userName, style: theme.headingMediumTextStyle.copyWith(color: theme.whiteColor)),
+                      Text(greeting,
+                          style: theme.bodyMediumTextStyle
+                              .copyWith(color: theme.whiteColor.withOpacity(0.9))),
+                      Text(userName,
+                          style: theme.headingMediumTextStyle
+                              .copyWith(color: theme.whiteColor)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: theme.AppSpacing.md),
-            Text('Tetap tenang, kami siap membantu Anda.', style: theme.bodyMediumTextStyle.copyWith(color: theme.whiteColor.withOpacity(0.9))),
+            Text('Tetap tenang, kami siap membantu Anda.',
+                style: theme.bodyMediumTextStyle
+                    .copyWith(color: theme.whiteColor.withOpacity(0.9))),
           ],
         ),
       ),
@@ -266,7 +300,8 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
 
   Widget _buildArticlesSection() {
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(theme.AppSpacing.lg, theme.AppSpacing.xl, theme.AppSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+          theme.AppSpacing.lg, theme.AppSpacing.xl, theme.AppSpacing.lg, 0),
       sliver: SliverList.separated(
         itemBuilder: (context, index) {
           if (index == 0) {
@@ -274,7 +309,8 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
           }
           return _buildArticleCard(context, index - 1);
         },
-        separatorBuilder: (context, index) => const SizedBox(height: theme.AppSpacing.md),
+        separatorBuilder: (context, index) =>
+            const SizedBox(height: theme.AppSpacing.md),
         itemCount: 6,
       ),
     );
@@ -285,7 +321,12 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: feature.gradient),
         borderRadius: theme.xLargeRadius,
-        boxShadow: [BoxShadow(color: feature.gradient.first.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+              color: feature.gradient.first.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5))
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -299,9 +340,14 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
               children: [
                 Icon(feature.icon, color: theme.whiteColor, size: 36),
                 const SizedBox(height: theme.AppSpacing.sm),
-                Text(feature.title, style: theme.buttonLargeTextStyle.copyWith(fontSize: 18), textAlign: TextAlign.center),
+                Text(feature.title,
+                    style: theme.buttonLargeTextStyle.copyWith(fontSize: 18),
+                    textAlign: TextAlign.center),
                 const SizedBox(height: theme.AppSpacing.xs),
-                Text(feature.subtitle, style: theme.bodySmallTextStyle.copyWith(color: theme.whiteColor.withOpacity(0.8)), textAlign: TextAlign.center),
+                Text(feature.subtitle,
+                    style: theme.bodySmallTextStyle
+                        .copyWith(color: theme.whiteColor.withOpacity(0.8)),
+                    textAlign: TextAlign.center),
               ],
             ),
           ),
@@ -324,16 +370,27 @@ class _HomePageContentState extends State<HomePageContent> with AutomaticKeepAli
             children: [
               ClipRRect(
                 borderRadius: theme.smallRadius,
-                child: Container(width: 80, height: 80, color: theme.backgroundLight, child: Icon(Icons.image, color: theme.textTertiaryColor.withOpacity(0.5))),
+                child: Container(
+                    width: 80,
+                    height: 80,
+                    color: theme.backgroundLight,
+                    child: Icon(Icons.image,
+                        color: theme.textTertiaryColor.withOpacity(0.5))),
               ),
               const SizedBox(width: theme.AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Tips Pertolongan Pertama untuk Luka Bakar', style: theme.modernBlackTextStyle.copyWith(fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                        'Tips Pertolongan Pertama untuk Luka Bakar',
+                        style: theme.modernBlackTextStyle
+                            .copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                     const SizedBox(height: theme.AppSpacing.sm),
-                    Text('Kategori: P3K • 5 menit baca', style: theme.bodySmallTextStyle),
+                    Text('Kategori: P3K • 5 menit baca',
+                        style: theme.bodySmallTextStyle),
                   ],
                 ),
               ),
