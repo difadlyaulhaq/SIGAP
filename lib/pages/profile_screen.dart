@@ -1,16 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+// --- IMPORTS BARU ---
+import 'package:rescuein/bloc/auth/auth_repository.dart'; // Diperlukan untuk menyediakan repository ke BLoC
+import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
+import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
+import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
+import 'package:rescuein/pages/medical_history_screen.dart'; // Halaman riwayat medis
+
+// --- IMPORTS LAMA ---
 import 'login_screen.dart';
 import '../theme/theme.dart';
 
-class ProfileScreen extends StatefulWidget {
+// Bagian 1: Widget utama yang menyediakan BLoC
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => ProfileBloc(
+        // Mengambil AuthRepository dari context yang lebih tinggi (asumsi sudah disediakan di main.dart atau di atasnya)
+        authRepository: context.read<AuthRepository>(),
+      )..add(FetchProfileData()), // Langsung memanggil event untuk mengambil data
+      child: const ProfileView(), // Widget yang akan menampilkan UI
+    );
+  }
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
+// Bagian 2: Widget View yang berisi UI dan state lokal (animasi, dll.)
+class ProfileView extends StatefulWidget {
+  const ProfileView({super.key});
+
+  @override
+  State<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -97,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   void _handleLogout() {
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -112,42 +139,71 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     return Scaffold(
       backgroundColor: surfaceColor,
       body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: CustomScrollView(
-              slivers: [
-                // Custom App Bar
-                _buildSliverAppBar(),
-                
-                // Profile Content
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      children: [
-                        // Profile Header
-                        _buildProfileHeader(),
-                        
-                        const SizedBox(height: AppSpacing.xl),
-                        
-                        // Menu Items
-                        _buildMenuSection(),
-                        
-                        const SizedBox(height: AppSpacing.xl),
-                        
-                        // Logout Button
-                        _buildLogoutButton(),
-                        
-                        const SizedBox(height: AppSpacing.lg),
-                      ],
-                    ),
+        // Menggunakan BlocBuilder untuk merender UI berdasarkan state dari ProfileBloc
+        child: BlocBuilder<ProfileBloc, ProfileState>(
+          builder: (context, state) {
+            // State ketika data sedang diambil
+            if (state is ProfileLoading || state is ProfileInitial) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // State ketika data berhasil didapatkan
+            if (state is ProfileLoaded) {
+              return FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: CustomScrollView(
+                    slivers: [
+                      // Custom App Bar
+                      _buildSliverAppBar(),
+                      
+                      // Profile Content
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Column(
+                            children: [
+                              // Profile Header, kini dengan data dinamis
+                              _buildProfileHeader(state),
+                              
+                              const SizedBox(height: AppSpacing.xl),
+                              
+                              // Menu Items, kini dengan navigasi
+                              _buildMenuSection(state),
+                              
+                              const SizedBox(height: AppSpacing.xl),
+                              
+                              // Logout Button
+                              _buildLogoutButton(),
+                              
+                              const SizedBox(height: AppSpacing.lg),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              );
+            }
+
+            // State ketika terjadi error
+            if (state is ProfileFailure) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Text(
+                    'Gagal memuat data profil:\n${state.message}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+
+            // Fallback jika ada state yang tidak terduga
+            return const Center(child: Text('Terjadi kesalahan.'));
+          },
         ),
       ),
     );
@@ -186,14 +242,15 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         IconButton(
           icon: Icon(Icons.settings_outlined, color: whiteColor),
           onPressed: () {
-            // Navigate to settings
+            // Navigasi ke halaman settings
           },
         ),
       ],
     );
   }
 
-  Widget _buildProfileHeader() {
+  // MODIFIKASI: Menerima state ProfileLoaded untuk data dinamis
+  Widget _buildProfileHeader(ProfileLoaded state) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -203,7 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       ),
       child: Column(
         children: [
-          // Profile Picture with Status
+          // Widget Profile Picture (tidak berubah)
           Stack(
             children: [
               Container(
@@ -247,21 +304,24 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           
           const SizedBox(height: AppSpacing.md),
           
-          // User Info
+          // ---- DATA DINAMIS ----
+          // Menampilkan nama dari state.user
           Text(
-            'Dr. Ahmad Nugraha',
+            state.user.nama,
             style: headingMediumTextStyle,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xs),
+          // Menampilkan email dari state.user
           Text(
-            'ahmad.nugraha@email.com',
+            state.user.email,
             style: bodyMediumTextStyle.copyWith(
               color: textSecondaryColor,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           
-          // Status Badge
+          // Status Badge (tidak berubah)
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -297,7 +357,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       ),
     );
   }
-  Widget _buildMenuSection() {
+
+  // MODIFIKASI: Menerima state ProfileLoaded untuk navigasi
+  Widget _buildMenuSection(ProfileLoaded state) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -310,14 +372,26 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             icon: Icons.person_outline,
             title: 'Edit Profil',
             subtitle: 'Ubah informasi pribadi Anda',
-            onTap: () {},
+            onTap: () {
+              // TODO: Implementasi navigasi ke halaman edit profil
+            },
           ),
           _buildMenuDivider(),
           _buildMenuItem(
             icon: Icons.medical_information_outlined,
             title: 'Riwayat Medis',
             subtitle: 'Lihat riwayat kesehatan Anda',
-            onTap: () {},
+            onTap: () {
+              // --- NAVIGASI KE HALAMAN RIWAYAT MEDIS ---
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MedicalHistoryScreen(
+                    medicalHistory: state.medicalHistory,
+                  ),
+                ),
+              );
+            },
           ),
           _buildMenuDivider(),
           _buildMenuItem(

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rescuein/models/medical_history_model.dart';
+import 'package:rescuein/models/user_model.dart';
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
@@ -110,7 +112,32 @@ class AuthRepository {
       'catatanTambahan': catatanTambahan,
     });
   }
+  Future<UserModel> getUserData(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        return UserModel.fromFirestore(doc);
+      } else {
+        throw Exception("User data not found!");
+      }
+    } catch (e) {
+      throw Exception("Failed to get user data: $e");
+    }
+  }
 
+  // Fungsi untuk mendapatkan riwayat medis dari Firestore
+  Future<MedicalHistoryModel> getMedicalHistory(String userId) async {
+    try {
+      final doc = await _firestore.collection('medicalHistories').doc(userId).get();
+       if (doc.exists) {
+        return MedicalHistoryModel.fromFirestore(doc);
+      } else {
+        throw Exception("Medical history not found!");
+      }
+    } catch (e) {
+      throw Exception("Failed to get medical history: $e");
+    }
+  }
   // Fungsi untuk login
   Future<void> logIn({required String email, required String password}) async {
     try {
