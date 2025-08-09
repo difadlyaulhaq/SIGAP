@@ -13,7 +13,12 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen>
     with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
+  final List<GlobalKey<FormState>> _formKeys = [
+    GlobalKey<FormState>(), // Key untuk Personal Info (Langkah 0)
+    GlobalKey<FormState>(), // Key untuk Medical Info (Langkah 1)
+    GlobalKey<FormState>(), // Key untuk Medical History (Langkah 2)
+    GlobalKey<FormState>(), // Key untuk Account (Langkah 3)
+  ];
   final _pageController = PageController();
 
   // Controllers
@@ -128,7 +133,7 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   void _handleSignup() {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKeys[3].currentState!.validate()) {
       return;
     }
 
@@ -230,16 +235,17 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   void _nextStep() {
+   if (_formKeys[_currentStep].currentState!.validate()) {
     if (_currentStep < 3) {
-      if (_formKey.currentState!.validate()) {
-        setState(() => _currentStep++);
-        _pageController.nextPage(
-          duration: AppDurations.medium,
-          curve: Curves.easeInOut,
-        );
-      }
+      setState(() => _currentStep++);
+      _pageController.nextPage(
+        duration: AppDurations.medium,
+        curve: Curves.easeInOut,
+      );
     }
   }
+}
+
 
   void _previousStep() {
     if (_currentStep > 0) {
@@ -272,28 +278,37 @@ class _SignupScreenState extends State<SignupScreen>
                 children: [
                   _buildAppBar(),
                   _buildProgressIndicator(),
-                  Expanded(
-                    child: Form(
-                      key: _formKey,
+                    Expanded(
                       child: PageView(
                         controller: _pageController,
                         physics: const NeverScrollableScrollPhysics(),
                         children: [
-                          _buildPersonalInfoStep(),
-                          _buildMedicalInfoStep(),
-                          _buildMedicalHistoryStep(),
-                          _buildAccountStep(),
+                          Form(
+                            key: _formKeys[0],
+                            child: _buildPersonalInfoStep(),
+                          ),
+                          Form(
+                            key: _formKeys[1],
+                            child: _buildMedicalInfoStep(),
+                          ),
+                          Form(
+                            key: _formKeys[2],
+                            child: _buildMedicalHistoryStep(),
+                          ),
+                          Form(
+                            key: _formKeys[3],
+                            child: _buildAccountStep(),
+                          ),
                         ],
                       ),
                     ),
-                  ),
                   _buildNavigationButtons(),
                 ],
               ),
             ),
           ),
-        ),
-      ),
+        )
+      )
     );
   }
 
@@ -372,18 +387,20 @@ class _SignupScreenState extends State<SignupScreen>
           const SizedBox(height: AppSpacing.md),
           _buildDatePicker(),
           const SizedBox(height: AppSpacing.md),
+                   const SizedBox(height: AppSpacing.md),
           _buildTextField(
             controller: _phoneController,
             label: 'Nomor Telepon',
-            hint: 'Masukkan nomor telepon',
+            hint: 'Contoh: 081234567890', 
             prefixIcon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Nomor telepon tidak boleh kosong';
               }
-              if (value.length < 10) {
-                return 'Nomor telepon minimal 10 digit';
+              final phoneRegExp = RegExp(r'^(?:\+62|62|0)8[1-9][0-9]{7,11}$');
+              if (!phoneRegExp.hasMatch(value)) {
+                return 'Format nomor telepon tidak valid. Gunakan 08... atau +62...';
               }
               return null;
             },

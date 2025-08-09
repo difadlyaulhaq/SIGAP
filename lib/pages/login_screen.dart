@@ -239,25 +239,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildLoginButton() {
+   Widget _buildLoginButton() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
+        // --- PERBAIKAN DI SINI ---
+        // Loading akan aktif hanya jika state adalah AuthLoading.
+        // Jika state adalah AuthFailure atau lainnya, loading akan berhenti.
         final isLoading = state is AuthLoading;
+
         return Container(
           height: 56,
           decoration: BoxDecoration(
+            // Jika sedang loading, buat gradien menjadi abu-abu. Jika tidak, gunakan gradien utama.
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: primaryGradient,
+              colors: isLoading ? [Colors.grey, Colors.grey.shade400] : primaryGradient,
             ),
             borderRadius: mediumRadius,
             boxShadow: [
-              BoxShadow(
-                color: primaryColor.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
+              if (!isLoading) // Hanya tampilkan bayangan jika tidak sedang loading
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
             ],
           ),
           child: ElevatedButton(
