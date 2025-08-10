@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:rescuein/pages/analysis_result_screen.dart';
 import '../theme/theme.dart'; // Sesuaikan path impor tema Anda
 
 // Enum untuk mengelola state UI dengan lebih bersih
@@ -100,29 +101,55 @@ class _WoundDetectionScreenState extends State<WoundDetectionScreen> with Automa
     }
   }
 
-  Future<void> _takePicture() async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-    try {
-      final image = await _controller!.takePicture();
-      if (!mounted) return;
-      // TODO: Proses gambar (image.path) di halaman selanjutnya
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gambar berhasil diambil: ${image.path}')),
-      );
-    } catch (e) {
-    }
-  }
+  // Di dalam _WoundDetectionScreenState
 
-  Future<void> _pickImageFromGallery() async {
-    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      if (!mounted) return;
-      // TODO: Proses gambar (image.path) di halaman selanjutnya
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gambar dipilih: ${image.path}')),
-      );
-    }
+Future<void> _takePicture() async {
+  if (_controller == null || !_controller!.value.isInitialized) return;
+  try {
+    final image = await _controller!.takePicture();
+    if (!mounted) return;
+
+    // ---- UBAH BAGIAN INI ----
+    // Hapus SnackBar
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(content: Text('Gambar berhasil diambil: ${image.path}')),
+    // );
+
+    // Navigasi ke halaman hasil
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AnalysisResultScreen(imagePath: image.path),
+      ),
+    );
+    // ---- AKHIR PERUBAHAN ----
+
+  } catch (e) {
+    // Handle error jika perlu
   }
+}
+
+  // Di dalam _WoundDetectionScreenState
+
+Future<void> _pickImageFromGallery() async {
+  final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+  if (image != null) {
+    if (!mounted) return;
+
+    // ---- UBAH BAGIAN INI ----
+    // Hapus SnackBar
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(content: Text('Gambar dipilih: ${image.path}')),
+    // );
+
+    // Navigasi ke halaman hasil
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AnalysisResultScreen(imagePath: image.path),
+      ),
+    );
+    // ---- AKHIR PERUBAHAN ----
+  }
+}
   
   // --- UI BUILDERS ---
 
