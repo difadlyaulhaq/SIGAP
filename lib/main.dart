@@ -9,6 +9,7 @@ import 'package:rescuein/pages/home_screen.dart';
 import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/pages/profile_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
+import 'package:rescuein/pages/splash_screen.dart'; // Pastikan import splash screen
 import 'package:rescuein/pages/wound_detection_screen.dart';
 import 'package:rescuein/theme/theme.dart';
 import 'firebase_options.dart';
@@ -33,12 +34,11 @@ class MyApp extends StatelessWidget {
     return RepositoryProvider(
       create: (context) => AuthRepository(),
       child: BlocProvider(
-        create: (context) =>
-            AuthBloc(
-              authRepository: RepositoryProvider.of<AuthRepository>(context),
-            )..add(
-              AuthCheckRequested(),
-            ), // Memeriksa status login saat aplikasi dimulai
+        create: (context) => AuthBloc(
+          authRepository: RepositoryProvider.of<AuthRepository>(context),
+        )..add(
+            AuthCheckRequested(),
+          ), // Memeriksa status login saat aplikasi dimulai
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'RescueIn',
@@ -61,11 +61,12 @@ class MyApp extends StatelessWidget {
             ),
           ),
 
-          // Menggunakan AuthWrapper untuk menentukan halaman awal
-          home: const AuthWrapper(),
+          // DIUBAH: Halaman awal sekarang adalah SplashScreen, yang akan menangani logika navigasi.
+          home: const SplashScreen(),
 
           // Daftarkan semua rute untuk navigasi dengan nama
           routes: {
+            // Rute '/splash' bisa dihapus jika tidak digunakan di tempat lain
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
             '/home': (context) => const HomeScreen(),
@@ -76,29 +77,6 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-    );
-  }
-}
-
-// Widget ini bertugas sebagai "penjaga gerbang" autentikasi
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        if (state is AuthAuthenticated) {
-          // Jika sudah login, langsung ke HomeScreen
-          return const HomeScreen();
-        }
-        if (state is AuthUnauthenticated) {
-          // Jika belum login, ke LoginScreen
-          return const LoginScreen();
-        }
-        // Selama proses pengecekan, tampilkan layar loading
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      },
     );
   }
 }
