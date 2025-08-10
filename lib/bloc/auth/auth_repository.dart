@@ -14,6 +14,9 @@ class AuthRepository {
   // Stream untuk memantau perubahan status autentikasi
   Stream<User?> get user => _firebaseAuth.authStateChanges();
 
+  // IMPLEMENTASI: Getter untuk mendapatkan user saat ini dari cache Firebase
+  User? get currentUser => _firebaseAuth.currentUser;
+
   // Fungsi untuk signup
   Future<void> signUp({
     required String email,
@@ -70,7 +73,6 @@ class AuthRepository {
     }
   }
 
-  // --- PERBAIKAN DI SINI ---
   // Fungsi untuk menyimpan data user utama
   Future<void> _saveUserData({
     required String userId,
@@ -96,7 +98,6 @@ class AuthRepository {
     });
   }
 
-  // --- PERBAIKAN DI SINI ---
   // Fungsi untuk menyimpan riwayat kesehatan
   Future<void> _saveMedicalHistory({
     required String userId,

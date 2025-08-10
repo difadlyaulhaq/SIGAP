@@ -16,18 +16,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       : _authRepository = authRepository,
         super(AuthInitial()) {
 
-    // Pantau perubahan status login dari repository
     _userSubscription = _authRepository.user.listen((user) {
-      if (user != null) {
-        add(AuthCheckRequested()); // Trigger event internal jika ada user
-      }
+      // Event ini bisa dipicu saat login, logout, atau saat token di-refresh
+      add(AuthCheckRequested());
     });
 
     on<AuthCheckRequested>((event, emit) async {
+      // IMPLEMENTASI: Logika pengecekan dibuat lebih sederhana dan cepat
       try {
-        final user = _authRepository.user.first;
-        if (await user != null) {
-          emit(AuthAuthenticated(user: (await user)!));
+        final user = _authRepository.currentUser; // Menggunakan getter baru
+        if (user != null) {
+          emit(AuthAuthenticated(user: user));
         } else {
           emit(AuthUnauthenticated());
         }
@@ -40,8 +39,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading());
       try {
         await _authRepository.logIn(email: event.email, password: event.password);
-        final user = _authRepository.user.first;
-        emit(AuthAuthenticated(user: (await user)!));
+        // Event AuthCheckRequested akan otomatis ter-trigger oleh stream listener di atas
       } catch (e) {
         emit(AuthFailure(message: e.toString()));
       }
@@ -65,8 +63,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           obatRutin: event.obatRutin,
           catatanTambahan: event.catatanTambahan,
         );
-        final user = _authRepository.user.first;
-        emit(AuthAuthenticated(user: (await user)!));
+         // Event AuthCheckRequested akan otomatis ter-trigger oleh stream listener
       } catch (e) {
         emit(AuthFailure(message: e.toString()));
       }
