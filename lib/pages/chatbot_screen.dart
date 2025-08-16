@@ -39,7 +39,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     await _loadHistory();
 
     // 2. Get API Key
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'API_KEY_NOT_FOUND';
+    final apiKey = dotenv.env['gemini_api_key'] ?? 'API_KEY_NOT_FOUND';
 
     if (apiKey.isEmpty) {
       if (mounted) setState(() => _apiKeyAvailable = false);

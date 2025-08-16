@@ -55,6 +55,11 @@ dependencies:
   firebase_ai: ^2.3.0
   flutter_markdown: ^0.7.7+1
   shared_preferences: ^2.5.3
+  image: ^4.5.4
+  flutter_map_animations: ^0.9.0
+  flutter_tts: ^4.2.3
+  persistent_bottom_nav_bar: ^6.2.1
+  persistent_bottom_nav_bar_v2: ^6.1.0
 
 
 dev_dependencies:

@@ -88,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         shape: BoxShape.circle,
                         boxShadow: [strongShadow],
                       ),
-                      child: const Image(image: AssetImage("assets/logo.png")),
+                      child: const Image(image: AssetImage('assets/logo.png')),
                     ),
                   ),
                 ),

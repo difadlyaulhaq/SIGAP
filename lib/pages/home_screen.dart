@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
-
 import 'package:rescuein/pages/hospital_nearby_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/theme.dart' as theme;
-
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
 
+// FIXED: Class _Feature dipindahkan ke top-level (luar class lain).
+// Ini adalah struktur yang benar di Dart.
 class _Feature {
   final IconData icon;
   final String title;
@@ -51,49 +50,96 @@ class _HomeScreenView extends StatefulWidget {
 }
 
 class _HomeScreenViewState extends State<_HomeScreenView> {
+  late PageController _pageController;
   int _pageIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomePageContent(),
-    const HospitalNearbyPage(),
-    const ChatbotScreen(),
-    const ProfileScreen(),
-  ];
+  // FIXED: Inisialisasi _pages dipindahkan ke initState
+  // agar bisa meneruskan fungsi instance (_onNavigationTap) ke child widget.
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _pageIndex);
+    _pages = [
+      HomePageContent(onNavigate: _onNavigationTap), // Kirim fungsi ke child
+      const HospitalNearbyPage(),
+      const ChatbotScreen(),
+      const ProfileScreen(),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onNavigationTap(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: theme.backgroundLight,
-      body: IndexedStack(
-        index: _pageIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: CurvedNavigationBar(
-        index: _pageIndex,
-        height: 65.0,
-        items: const <Widget>[
-          Icon(Icons.home_filled, size: 30, color: Colors.white),
-          Icon(Icons.local_hospital_outlined, size: 30, color: Colors.white),
-          Icon(Icons.chat_bubble_outline, size: 30, color: Colors.white),
-          Icon(Icons.person_outline, size: 30, color: Colors.white),
-        ],
-        color: theme.primaryColor,
-        buttonBackgroundColor: theme.primaryColor,
-        backgroundColor: Colors.transparent,
-        animationCurve: Curves.easeInOut,
-        animationDuration: const Duration(milliseconds: 400),
-        onTap: (index) {
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
           setState(() {
             _pageIndex = index;
           });
         },
+        children: _pages,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pushNamed(context, '/detect'),
+        backgroundColor: theme.primaryColor,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        height: 65.0,
+        color: theme.whiteColor,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            _buildNavItem(icon: Icons.home_filled, index: 0),
+            _buildNavItem(icon: Icons.local_hospital_outlined, index: 1),
+            const SizedBox(width: 48), // The space for the FAB
+            _buildNavItem(icon: Icons.chat_bubble_outline, index: 2),
+            _buildNavItem(icon: Icons.person_outline, index: 3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({required IconData icon, required int index}) {
+    final bool isSelected = _pageIndex == index;
+    return IconButton(
+      icon: Icon(
+        icon,
+        color: isSelected ? theme.primaryColor : theme.textTertiaryColor,
+        size: 30,
+      ),
+      onPressed: () => _onNavigationTap(index),
     );
   }
 }
 
 class HomePageContent extends StatefulWidget {
-  const HomePageContent({super.key});
+  // FIXED: Tambahkan parameter onNavigate untuk menerima fungsi dari parent.
+  final void Function(int) onNavigate;
+
+  const HomePageContent({super.key, required this.onNavigate});
 
   @override
   State<HomePageContent> createState() => _HomePageContentState();
@@ -103,6 +149,15 @@ class _HomePageContentState extends State<HomePageContent>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  late final List<_Feature> _features;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sekarang _getFeatures bisa di-passing context
+    _features = _getFeatures(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +176,8 @@ class _HomePageContentState extends State<HomePageContent>
           slivers: [
             _buildModernHeader(context, userName),
             _buildFeaturesSection(),
-            _buildArticlesSection(),
+            _buildArticlesSectionHeader(),
+            _buildArticlesSectionBody(),
             const SliverToBoxAdapter(
                 child: SizedBox(height: theme.AppSpacing.xxl)),
           ],
@@ -162,7 +218,7 @@ class _HomePageContentState extends State<HomePageContent>
                 shape: RoundedRectangleBorder(borderRadius: theme.mediumRadius),
               ),
               child: Text('Panggil', style: theme.buttonMediumTextStyle),
-              onPressed: () async {
+              onPressed: () {
                 Navigator.of(dialogContext).pop();
                 _makeEmergencyCall();
               },
@@ -181,9 +237,10 @@ class _HomePageContentState extends State<HomePageContent>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text('Tidak dapat melakukan panggilan.', style: theme.bodyMediumTextStyle),
-              backgroundColor: theme.errorColor),
+            content: Text('Tidak dapat melakukan panggilan.',
+                style: theme.bodyMediumTextStyle),
+            backgroundColor: theme.errorColor,
+          ),
         );
       }
     }
@@ -191,13 +248,6 @@ class _HomePageContentState extends State<HomePageContent>
 
   List<_Feature> _getFeatures(BuildContext context) {
     return [
-      _Feature(
-        icon: Icons.camera_alt,
-        title: 'Deteksi Luka',
-        subtitle: 'Analisis luka via kamera',
-        gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)],
-        onTap: () => Navigator.pushNamed(context, '/detect'),
-      ),
       _Feature(
         icon: Icons.chat_bubble,
         title: 'Chatbot',
@@ -219,6 +269,14 @@ class _HomePageContentState extends State<HomePageContent>
         gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
         onTap: () => Navigator.pushNamed(context, '/articles'),
       ),
+      _Feature(
+        icon: Icons.map,
+        title: 'RS Terdekat',
+        subtitle: 'Cari fasilitas medis',
+        gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)],
+        // FIXED: Panggil fungsi onNavigate yang didapat dari parent.
+        onTap: () => widget.onNavigate(1),
+      ),
     ];
   }
 
@@ -232,86 +290,106 @@ class _HomePageContentState extends State<HomePageContent>
       greetingIcon = Icons.wb_sunny_rounded;
     } else if (hour < 17) {
       greeting = 'Selamat Siang';
-      greetingIcon = Icons.wb_sunny_outlined;
+      greetingIcon = Icons.wb_cloudy_rounded;
     } else {
       greeting = 'Selamat Malam';
       greetingIcon = Icons.nights_stay_rounded;
     }
 
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.all(theme.AppSpacing.lg),
-        padding: const EdgeInsets.all(theme.AppSpacing.xl),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: theme.primaryGradient),
-          borderRadius: theme.xxLargeRadius,
-          boxShadow: [theme.cardShadow],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return SliverAppBar(
+      expandedHeight: 180.0,
+      backgroundColor: theme.backgroundLight,
+      pinned: true,
+      floating: true,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Padding(
+          padding: const EdgeInsets.all(theme.AppSpacing.lg),
+          child: Container(
+            padding: const EdgeInsets.all(theme.AppSpacing.xl),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: theme.primaryGradient),
+              borderRadius: theme.xxLargeRadius,
+              boxShadow: [theme.cardShadow],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(greetingIcon, color: theme.whiteColor, size: 28),
-                const SizedBox(width: theme.AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(greeting,
-                          style: theme.bodyMediumTextStyle
-                              .copyWith(color: theme.whiteColor.withOpacity(0.9))),
-                      Text(userName,
-                          style: theme.headingMediumTextStyle
-                              .copyWith(color: theme.whiteColor)),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    Icon(greetingIcon, color: theme.whiteColor, size: 28),
+                    const SizedBox(width: theme.AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(greeting,
+                              style: theme.bodyMediumTextStyle.copyWith(
+                                  color: theme.whiteColor.withOpacity(0.9))),
+                          Text(userName,
+                              style: theme.headingMediumTextStyle
+                                  .copyWith(color: theme.whiteColor)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: theme.AppSpacing.md),
+                Text('Tetap tenang, kami siap membantu Anda.',
+                    style: theme.bodyMediumTextStyle
+                        .copyWith(color: theme.whiteColor.withOpacity(0.9))),
               ],
             ),
-            const SizedBox(height: theme.AppSpacing.md),
-            Text('Tetap tenang, kami siap membantu Anda.',
-                style: theme.bodyMediumTextStyle
-                    .copyWith(color: theme.whiteColor.withOpacity(0.9))),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildFeaturesSection() {
-    final features = _getFeatures(context);
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: theme.AppSpacing.lg),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 1.05,
+          childAspectRatio: 1.2,
           crossAxisSpacing: theme.AppSpacing.md,
           mainAxisSpacing: theme.AppSpacing.md,
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, index) => _buildFeatureCard(context, features[index]),
-          childCount: features.length,
+          (context, index) => _FadeInAnimation(
+            delay: Duration(milliseconds: 100 * index),
+            child: _buildFeatureCard(context, _features[index]),
+          ),
+          childCount: _features.length,
         ),
       ),
     );
   }
 
-  Widget _buildArticlesSection() {
+  Widget _buildArticlesSectionHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(theme.AppSpacing.lg,
+            theme.AppSpacing.xl, theme.AppSpacing.lg, theme.AppSpacing.md),
+        child: Text('Artikel Terbaru', style: theme.headingSmallTextStyle),
+      ),
+    );
+  }
+
+  Widget _buildArticlesSectionBody() {
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(
-          theme.AppSpacing.lg, theme.AppSpacing.xl, theme.AppSpacing.lg, 0),
+      padding: const EdgeInsets.symmetric(horizontal: theme.AppSpacing.lg),
       sliver: SliverList.separated(
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return Text('Artikel Terbaru', style: theme.headingSmallTextStyle);
-          }
-          return _buildArticleCard(context, index - 1);
+          return _FadeInAnimation(
+            delay: Duration(milliseconds: 50 * index),
+            child: _buildArticleCard(context, index),
+          );
         },
         separatorBuilder: (context, index) =>
             const SizedBox(height: theme.AppSpacing.md),
-        itemCount: 6,
+        itemCount: 5,
       ),
     );
   }
@@ -319,7 +397,10 @@ class _HomePageContentState extends State<HomePageContent>
   Widget _buildFeatureCard(BuildContext context, _Feature feature) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: feature.gradient),
+        gradient: LinearGradient(
+            colors: feature.gradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
         borderRadius: theme.xLargeRadius,
         boxShadow: [
           BoxShadow(
@@ -358,7 +439,8 @@ class _HomePageContentState extends State<HomePageContent>
 
   Widget _buildArticleCard(BuildContext context, int index) {
     return Card(
-      elevation: 0,
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.05),
       shape: RoundedRectangleBorder(borderRadius: theme.mediumRadius),
       color: theme.cardColor,
       child: InkWell(
@@ -369,21 +451,32 @@ class _HomePageContentState extends State<HomePageContent>
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: theme.smallRadius,
-                child: Container(
+                  borderRadius: theme.smallRadius,
+                  child: Image.network(
+                    'https://picsum.photos/seed/${index + 10}/200',
                     width: 80,
                     height: 80,
-                    color: theme.backgroundLight,
-                    child: Icon(Icons.image,
-                        color: theme.textTertiaryColor.withOpacity(0.5))),
-              ),
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 80,
+                        height: 80,
+                        color: theme.backgroundLight,
+                        child: Center(
+                            child: CircularProgressIndicator(
+                          strokeWidth: 2.0,
+                          color: theme.primaryColor,
+                        )),
+                      );
+                    },
+                  )),
               const SizedBox(width: theme.AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                        'Tips Pertolongan Pertama untuk Luka Bakar',
+                    Text('Tips Pertolongan Pertama untuk Luka Bakar',
                         style: theme.modernBlackTextStyle
                             .copyWith(fontWeight: FontWeight.w600),
                         maxLines: 2,
@@ -398,6 +491,54 @@ class _HomePageContentState extends State<HomePageContent>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FadeInAnimation extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+
+  const _FadeInAnimation({required this.child, this.delay = Duration.zero});
+
+  @override
+  _FadeInAnimationState createState() => _FadeInAnimationState();
+}
+
+class _FadeInAnimationState extends State<_FadeInAnimation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+
+    Future.delayed(widget.delay, () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: widget.child,
     );
   }
 }
