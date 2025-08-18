@@ -10,9 +10,9 @@ SIGAP hadir dengan tiga pilar fungsionalitas utama yang dirancang untuk memberik
 
 | Fitur | Deskripsi | Tampilan (Mockup) |
 | :--- | :--- | :--- |
-| **Deteksi Luka dengan AI** | Gunakan kamera ponsel Anda untuk memindai luka. AI kami akan menganalisis gambar secara instan untuk mengidentifikasi jenis luka, memberikan perkiraan tingkat keparahan, dan menyajikan langkah-langkah pertolongan pertama yang jelas dan mudah diikuti. | <img src="IMG-20250815-WA0020.jpg" width="200"/> |
-| **Pencarian RS Terdekat** | Dalam keadaan darurat, setiap detik berharga. SIGAP secara otomatis mendeteksi lokasi Anda dan menampilkan daftar rumah sakit atau klinik terdekat, lengkap dengan rute tercepat untuk mencapai lokasi tersebut. | <img src="IMG-20250815-WA0018.jpg" width="200"/> |
-| **Chatbot Pertolongan Pertama** | Punya pertanyaan seputar P3K atau gejala medis ringan? Chatbot cerdas kami siap membantu 24/7. Dapatkan jawaban cepat dan panduan untuk berbagai situasi medis umum langsung dari aplikasi. | <img src="IMG-20250815-WA0016.jpg" width="200"/> |
+| **Deteksi Luka dengan AI** | Gunakan kamera ponsel Anda untuk memindai luka. AI kami akan menganalisis gambar secara instan untuk mengidentifikasi jenis luka, memberikan perkiraan tingkat keparahan, dan menyajikan langkah-langkah pertolongan pertama yang jelas dan mudah diikuti. | <img src="assets/IMG-20250815-WA0020.jpg" width="200"/> |
+| **Pencarian RS Terdekat** | Dalam keadaan darurat, setiap detik berharga. SIGAP secara otomatis mendeteksi lokasi Anda dan menampilkan daftar rumah sakit atau klinik terdekat, lengkap dengan rute tercepat untuk mencapai lokasi tersebut. | <img src="assets/IMG-20250815-WA0018.jpg" width="200"/> |
+| **Chatbot Pertolongan Pertama** | Punya pertanyaan seputar P3K atau gejala medis ringan? Chatbot cerdas kami siap membantu 24/7. Dapatkan jawaban cepat dan panduan untuk berbagai situasi medis umum langsung dari aplikasi. | <img src="assets/IMG-20250815-WA0016.jpg" width="200"/> |
 
 Fitur pendukung lainnya meliputi:
 * **Artikel Kesehatan:** Pustaka konten edukatif untuk meningkatkan literasi kesehatan Anda.
