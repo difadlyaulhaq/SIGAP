@@ -61,8 +61,8 @@ Untuk menjalankan proyek ini di lingkungan pengembangan lokal Anda, ikuti langka
 
 Aplikasi ini dikembangkan oleh tim mahasiswa dari **Universitas Amikom Yogyakarta**:
 
-* **Difa Dlyaul Haq** - 22.61.0234
-* **Praditus Egi Danuarta** - 22.11.4662
-* **Muhammad Adib Najwan** - 22.11.5039
+* **Difa Dlyaul Haq**
+* **Praditus Egi Danuarta** 
+* **Muhammad Adib Najwan** 
 
 ---
