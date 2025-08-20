@@ -60,6 +60,7 @@ dependencies:
   flutter_tts: ^4.2.3
   persistent_bottom_nav_bar: ^6.2.1
   persistent_bottom_nav_bar_v2: ^6.1.0
+  equatable: ^2.0.7
 
 
 dev_dependencies:

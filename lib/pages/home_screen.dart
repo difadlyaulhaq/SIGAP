@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rescuein/bloc/article/article_bloc.dart';
+import 'package:rescuein/bloc/article/article_event.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart';
+// HAPUS: import 'package:rescuein/bloc/article/article_cubit.dart'; // Tidak diperlukan lagi
+import 'package:rescuein/bloc/article/article_state.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
+import 'package:rescuein/models/article_model.dart';
 import 'package:rescuein/pages/hospital_nearby_screen.dart';
+import 'package:rescuein/services/news_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/theme.dart' as theme;
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
 
-// FIXED: Class _Feature dipindahkan ke top-level (luar class lain).
-// Ini adalah struktur yang benar di Dart.
 class _Feature {
   final IconData icon;
   final String title;
@@ -33,15 +37,25 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => ProfileBloc(
-        authRepository: context.read<AuthRepository>(),
-      )..add(FetchProfileData()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => ProfileBloc(
+            authRepository: context.read<AuthRepository>(),
+          )..add(FetchProfileData()),
+        ),
+        // PERBAIKAN 1: Sediakan ArticleBloc, bukan ArticleCubit
+        BlocProvider(
+          create: (context) => ArticleBloc(NewsApiService())
+            ..add(FetchArticles()), // Kirim event untuk mulai fetch
+        ),
+      ],
       child: const _HomeScreenView(),
     );
   }
 }
 
+// ... (Tidak ada perubahan pada _HomeScreenViewState)
 class _HomeScreenView extends StatefulWidget {
   const _HomeScreenView();
 
@@ -52,9 +66,6 @@ class _HomeScreenView extends StatefulWidget {
 class _HomeScreenViewState extends State<_HomeScreenView> {
   late PageController _pageController;
   int _pageIndex = 0;
-
-  // FIXED: Inisialisasi _pages dipindahkan ke initState
-  // agar bisa meneruskan fungsi instance (_onNavigationTap) ke child widget.
   late final List<Widget> _pages;
 
   @override
@@ -62,7 +73,7 @@ class _HomeScreenViewState extends State<_HomeScreenView> {
     super.initState();
     _pageController = PageController(initialPage: _pageIndex);
     _pages = [
-      HomePageContent(onNavigate: _onNavigationTap), // Kirim fungsi ke child
+      HomePageContent(onNavigate: _onNavigationTap),
       const HospitalNearbyPage(),
       const ChatbotScreen(),
       const ProfileScreen(),
@@ -113,7 +124,7 @@ class _HomeScreenViewState extends State<_HomeScreenView> {
           children: <Widget>[
             _buildNavItem(icon: Icons.home_filled, index: 0),
             _buildNavItem(icon: Icons.local_hospital_outlined, index: 1),
-            const SizedBox(width: 48), // The space for the FAB
+            const SizedBox(width: 48),
             _buildNavItem(icon: Icons.chat_bubble_outline, index: 2),
             _buildNavItem(icon: Icons.person_outline, index: 3),
           ],
@@ -135,8 +146,8 @@ class _HomeScreenViewState extends State<_HomeScreenView> {
   }
 }
 
+
 class HomePageContent extends StatefulWidget {
-  // FIXED: Tambahkan parameter onNavigate untuk menerima fungsi dari parent.
   final void Function(int) onNavigate;
 
   const HomePageContent({super.key, required this.onNavigate});
@@ -155,7 +166,6 @@ class _HomePageContentState extends State<HomePageContent>
   @override
   void initState() {
     super.initState();
-    // Sekarang _getFeatures bisa di-passing context
     _features = _getFeatures(context);
   }
 
@@ -274,7 +284,6 @@ class _HomePageContentState extends State<HomePageContent>
         title: 'RS Terdekat',
         subtitle: 'Cari fasilitas medis',
         gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)],
-        // FIXED: Panggil fungsi onNavigate yang didapat dari parent.
         onTap: () => widget.onNavigate(1),
       ),
     ];
@@ -367,6 +376,17 @@ class _HomePageContentState extends State<HomePageContent>
     );
   }
 
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tidak dapat membuka link: $url')),
+        );
+      }
+    }
+  }
+
   Widget _buildArticlesSectionHeader() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -378,19 +398,49 @@ class _HomePageContentState extends State<HomePageContent>
   }
 
   Widget _buildArticlesSectionBody() {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: theme.AppSpacing.lg),
-      sliver: SliverList.separated(
-        itemBuilder: (context, index) {
-          return _FadeInAnimation(
-            delay: Duration(milliseconds: 50 * index),
-            child: _buildArticleCard(context, index),
+    // PERBAIKAN 2: Ganti BlocBuilder agar mendengarkan ArticleBloc
+    return BlocBuilder<ArticleBloc, ArticleState>(
+      builder: (context, state) {
+        if (state is ArticleLoading || state is ArticleInitial) {
+          return SliverList.separated(
+            itemBuilder: (context, index) => _buildArticleCardPlaceholder(),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: theme.AppSpacing.md),
+            itemCount: 3,
           );
-        },
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: theme.AppSpacing.md),
-        itemCount: 5,
-      ),
+        } else if (state is ArticleLoaded) {
+          return SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: theme.AppSpacing.lg),
+            sliver: SliverList.separated(
+              itemBuilder: (context, index) {
+                final article = state.articles[index];
+                return _FadeInAnimation(
+                  delay: Duration(milliseconds: 50 * index),
+                  child: _buildArticleCard(context, article),
+                );
+              },
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: theme.AppSpacing.md),
+              itemCount: state.articles.length,
+            ),
+          );
+        } else if (state is ArticleError) {
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Gagal memuat artikel.\nCoba lagi nanti.',
+                  textAlign: TextAlign.center,
+                  style: theme.bodyMediumTextStyle
+                      .copyWith(color: theme.textSecondaryColor),
+                ),
+              ),
+            ),
+          );
+        }
+        return const SliverToBoxAdapter(child: SizedBox.shrink());
+      },
     );
   }
 
@@ -437,7 +487,7 @@ class _HomePageContentState extends State<HomePageContent>
     );
   }
 
-  Widget _buildArticleCard(BuildContext context, int index) {
+  Widget _buildArticleCard(BuildContext context, Article article) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.05),
@@ -445,45 +495,67 @@ class _HomePageContentState extends State<HomePageContent>
       color: theme.cardColor,
       child: InkWell(
         borderRadius: theme.mediumRadius,
-        onTap: () {},
+        onTap: () => _launchURL(article.url),
         child: Padding(
           padding: const EdgeInsets.all(theme.AppSpacing.md),
           child: Row(
             children: [
               ClipRRect(
-                  borderRadius: theme.smallRadius,
-                  child: Image.network(
-                    'https://picsum.photos/seed/${index + 10}/200',
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
+                borderRadius: theme.smallRadius,
+                child: article.urlToImage != null // Periksa apakah URL gambar ada
+                    ? Image.network(
+                        article.urlToImage!,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 80,
+                            height: 80,
+                            color: theme.backgroundLight,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.0,
+                                color: theme.primaryColor,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                          width: 80,
+                          height: 80,
+                          color: theme.backgroundLight,
+                          child: Icon(Icons.broken_image,
+                              color: theme.textTertiaryColor),
+                        ),
+                      )
+                    : Container( // Tampilkan placeholder jika URL gambar tidak ada
                         width: 80,
                         height: 80,
                         color: theme.backgroundLight,
-                        child: Center(
-                            child: CircularProgressIndicator(
-                          strokeWidth: 2.0,
-                          color: theme.primaryColor,
-                        )),
-                      );
-                    },
-                  )),
+                        child: Icon(Icons.image_not_supported_outlined,
+                            color: theme.textTertiaryColor),
+                      ),
+              ),
               const SizedBox(width: theme.AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Tips Pertolongan Pertama untuk Luka Bakar',
-                        style: theme.modernBlackTextStyle
-                            .copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      article.title,
+                      style: theme.modernBlackTextStyle
+                          .copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: theme.AppSpacing.sm),
-                    Text('Kategori: P3K • 5 menit baca',
-                        style: theme.bodySmallTextStyle),
+                    Text(
+                      article.sourceName,
+                      style: theme.bodySmallTextStyle,
+                    ),
                   ],
                 ),
               ),
@@ -493,8 +565,56 @@ class _HomePageContentState extends State<HomePageContent>
       ),
     );
   }
+
+  Widget _buildArticleCardPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(theme.AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: theme.mediumRadius,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: theme.smallRadius,
+            ),
+          ),
+          const SizedBox(width: theme.AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: double.infinity,
+                  color: Colors.grey[200],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 16,
+                  width: 200,
+                  color: Colors.grey[200],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 12,
+                  width: 100,
+                  color: Colors.grey[200],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
+// ... (_FadeInAnimation tidak perlu diubah)
 class _FadeInAnimation extends StatefulWidget {
   final Widget child;
   final Duration delay;

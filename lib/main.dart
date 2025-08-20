@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
           ), // Memeriksa status login saat aplikasi dimulai
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'RescueIn',
+          title: 'SIGAP',
           theme: ThemeData(
             // Menggunakan tema dari file theme.dart
             primaryColor: primaryColor,
