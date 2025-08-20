@@ -31,4 +31,4 @@ class NewsApiService {
       throw Exception('Gagal memuat artikel: $e');
     }
   }
-}
+} 
