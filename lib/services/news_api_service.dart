@@ -19,7 +19,7 @@ class NewsApiService {
         if (data['status'] == 'ok') {
           // 'items' adalah key untuk daftar artikel di API ini
           final List articles = data['items'];
-          return articles.take(5).map((json) => Article.fromJson(json)).toList();
+          return articles.map((json) => Article.fromJson(json)).toList();
         } else {
           throw Exception('Gagal memuat artikel: API status bukan ok');
         }
