@@ -1,9 +1,7 @@
 // lib/bloc/article/article_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:equatable/equatable.dart';
 import '../../services/news_api_service.dart';
-import '../../models/article_model.dart';
 import 'article_event.dart';
 import 'article_state.dart';
 
