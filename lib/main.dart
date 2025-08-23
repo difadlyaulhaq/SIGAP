@@ -6,6 +6,7 @@ import 'package:rescuein/bloc/auth/auth_repository.dart';
 import 'package:rescuein/pages/articles_screen.dart';
 import 'package:rescuein/pages/chatbot_screen.dart';
 import 'package:rescuein/pages/home_screen.dart';
+import 'package:rescuein/pages/learning_page.dart';
 import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/pages/profile_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
@@ -74,6 +75,7 @@ class MyApp extends StatelessWidget {
             '/detect': (context) => const WoundDetectionScreen(),
             '/articles': (context) => const ArticlesScreen(),
             '/chatbot': (context) => const ChatbotScreen(),
+            '/learning': (context) => const InteractiveLearningScreen(),
           },
         ),
       ),

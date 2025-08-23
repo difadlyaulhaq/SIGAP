@@ -273,6 +273,13 @@ class _HomePageContentState extends State<HomePageContent>
         onTap: () => _showEmergencyCallConfirmation(context),
       ),
       _Feature(
+        icon: Icons.school,
+        title: 'Pelajaran',
+        subtitle: 'Materi pembelajaran P3K',
+        gradient: [const Color(0xFF4C6EF5), const Color(0xFF2E5B97)],
+        onTap: () => Navigator.pushNamed(context, '/learning'),
+      ),
+      _Feature(
         icon: Icons.article,
         title: 'Semua Artikel',
         subtitle: 'Lihat info kesehatan',
