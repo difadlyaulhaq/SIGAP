@@ -5,7 +5,7 @@ import '../models/article_model.dart';
 
 class NewsApiService {
   // Ganti URL dengan endpoint RSS-to-JSON
-  final String _url = 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.cnnindonesia.com%2Fgaya-hidup%2Frss';
+  final String _url = 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fhealth.detik.com%2Frss';
 
   Future<List<Article>> fetchHealthArticles() async {
     print('Mencoba mengambil data dari: $_url');
