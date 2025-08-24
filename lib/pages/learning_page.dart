@@ -83,8 +83,16 @@ class QuizResult {
   double get percentage => (correctAnswers / totalQuestions) * 100;
 }
 
-// Dummy Data
+// Data
 class LearningData {
+  static List<LearningTopic> getAllTopics() {
+    return [
+      getBurnTopic(),
+      getWoundTopic(),
+      getFractureTopic(),
+    ];
+  }
+
   static LearningTopic getBurnTopic() {
     return LearningTopic(
       id: 'burn_treatment',
@@ -153,29 +161,79 @@ class LearningData {
             correctAnswer: 2,
             explanation: 'Pasta gigi tidak boleh dioleskan pada luka bakar karena dapat menyebabkan infeksi dan memperburuk luka.',
           ),
+        ],
+      ),
+    );
+  }
+
+  static LearningTopic getWoundTopic() {
+    return LearningTopic(
+      id: 'wound_treatment',
+      title: 'Perawatan Luka',
+      description: 'Teknik dasar merawat luka ringan hingga sedang',
+      icon: Icons.healing,
+      gradient: [const Color(0xFF4ECDC4), const Color(0xFF44A08D)],
+      materials: [
+        LearningMaterial(
+          id: 'wound_intro',
+          title: 'Mengenal Jenis Luka',
+          content: 'Luka adalah kerusakan pada jaringan tubuh yang dapat disebabkan oleh berbagai faktor. Jenis luka meliputi:\n\n• Luka sayat\n• Luka robek\n• Luka tusuk\n• Luka lecet\n• Luka memar',
+          type: MaterialType.text,
+        ),
+        LearningMaterial(
+          id: 'wound_care',
+          title: 'Perawatan Luka Dasar',
+          content: '1. CUCI TANGAN\n   Bersihkan tangan dengan sabun\n\n2. HENTIKAN PENDARAHAN\n   Tekan luka dengan kain bersih\n\n3. BERSIHKAN LUKA\n   Bilas dengan air bersih\n\n4. OLESKAN ANTISEPTIK\n   Gunakan betadine atau alkohol\n\n5. TUTUP LUKA\n   Pasang plester atau perban',
+          type: MaterialType.steps,
+        ),
+      ],
+      quiz: Quiz(
+        id: 'wound_quiz',
+        title: 'Kuis Perawatan Luka',
+        questions: [
           Question(
-            id: 'q4',
-            question: 'Luka bakar derajat 3 mengenai:',
-            options: [
-              'Hanya lapisan terluar kulit',
-              'Lapisan kulit yang lebih dalam',
-              'Seluruh ketebalan kulit',
-              'Hanya rambut'
-            ],
-            correctAnswer: 2,
-            explanation: 'Luka bakar derajat 3 mengenai seluruh ketebalan kulit dan merupakan yang paling parah.',
+            id: 'wq1',
+            question: 'Langkah pertama dalam merawat luka adalah?',
+            options: ['Cuci tangan', 'Oleskan obat', 'Tutup luka', 'Panggil dokter'],
+            correctAnswer: 0,
+            explanation: 'Mencuci tangan adalah langkah pertama untuk mencegah infeksi.',
           ),
+        ],
+      ),
+    );
+  }
+
+  static LearningTopic getFractureTopic() {
+    return LearningTopic(
+      id: 'fracture_treatment',
+      title: 'Penanganan Patah Tulang',
+      description: 'Pertolongan pertama untuk cedera patah tulang',
+      icon: Icons.accessible_forward,
+      gradient: [const Color(0xFF667eea), const Color(0xFF764ba2)],
+      materials: [
+        LearningMaterial(
+          id: 'fracture_intro',
+          title: 'Mengenali Patah Tulang',
+          content: 'Patah tulang adalah terputusnya kontinuitas tulang. Tanda-tanda:\n\n• Nyeri hebat\n• Bengkak\n• Deformitas\n• Ketidakmampuan bergerak\n• Bunyi patah saat cedera',
+          type: MaterialType.text,
+        ),
+        LearningMaterial(
+          id: 'fracture_aid',
+          title: 'Pertolongan Pertama',
+          content: '1. JANGAN GERAKKAN KORBAN\n   Stabilkan posisi\n\n2. IMMOBILISASI\n   Pasang bidai pada area patah\n\n3. KOMPRES ES\n   Kurangi bengkak dan nyeri\n\n4. ELEVASI\n   Angkat bagian yang cedera\n\n5. RUJUK KE RS\n   Segera bawa ke rumah sakit',
+          type: MaterialType.steps,
+        ),
+      ],
+      quiz: Quiz(
+        id: 'fracture_quiz',
+        title: 'Kuis Patah Tulang',
+        questions: [
           Question(
-            id: 'q5',
-            question: 'Mengapa perhiasan harus dilepas pada korban luka bakar?',
-            options: [
-              'Agar tidak hilang',
-              'Mencegah pembengkakan yang terjepit',
-              'Perhiasan bisa mencair',
-              'Mengurangi rasa sakit'
-            ],
+            id: 'fq1',
+            question: 'Hal pertama yang dilakukan pada korban patah tulang?',
+            options: ['Pindahkan korban', 'Stabilkan posisi', 'Beri obat', 'Urut area patah'],
             correctAnswer: 1,
-            explanation: 'Perhiasan harus dilepas sebelum terjadi pembengkakan yang dapat menyebabkan terjepit dan memperburuk cedera.',
+            explanation: 'Stabilkan posisi korban untuk mencegah cedera lebih lanjut.',
           ),
         ],
       ),
@@ -183,7 +241,7 @@ class LearningData {
   }
 }
 
-// Theme Colors (menggunakan tema dari file Anda)
+// Theme Colors
 class AppTheme {
   static const Color primaryColor = Color(0xFF00796B);
   static const Color accentColor = Color(0xFF81C784);
@@ -206,63 +264,106 @@ class AppTheme {
   static BorderRadius xLargeRadius = BorderRadius.circular(20);
 }
 
-// Main Learning Screen
-class InteractiveLearningScreen extends StatefulWidget {
-  const InteractiveLearningScreen({Key? key}) : super(key: key);
+// Main Topic Selection Screen
+class LearningHomeScreen extends StatefulWidget {
+  const LearningHomeScreen({Key? key}) : super(key: key);
 
   @override
-  State<InteractiveLearningScreen> createState() => _InteractiveLearningScreenState();
+  State<LearningHomeScreen> createState() => _LearningHomeScreenState();
 }
 
-class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
-  late LearningTopic topic;
-  int currentMaterialIndex = 0;
-  bool hasStartedLearning = false;
-  bool hasCompletedMaterials = false;
-  QuizResult? quizResult;
+class _LearningHomeScreenState extends State<LearningHomeScreen> 
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    topic = LearningData.getBurnTopic();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final topics = LearningData.getAllTopics();
+    
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          if (!hasStartedLearning) _buildTopicOverview(),
-          if (hasStartedLearning && !hasCompletedMaterials) _buildMaterialContent(),
-          if (hasCompletedMaterials && quizResult == null) _buildQuizSection(),
-          if (quizResult != null) _buildQuizResult(),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 120,
-      pinned: true,
-      backgroundColor: AppTheme.primaryColor,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          topic.title,
-          style: const TextStyle(
+      appBar: AppBar(
+        backgroundColor: AppTheme.primaryColor,
+        elevation: 0,
+        title: const Text(
+          'Pembelajaran P3K',
+          style: TextStyle(
             color: AppTheme.whiteColor,
             fontWeight: FontWeight.w600,
           ),
         ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.8)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pilih Topik Pembelajaran',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pelajari teknik pertolongan pertama yang tepat',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ...topics.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final topic = entry.value;
+                  return AnimatedContainer(
+                    duration: Duration(milliseconds: 200 + (index * 100)),
+                    curve: Curves.easeInOut,
+                    child: _buildTopicCard(topic, index),
+                  );
+                }).toList(),
+              ],
             ),
           ),
         ),
@@ -270,193 +371,227 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
     );
   }
 
-  Widget _buildTopicOverview() {
-    return SliverPadding(
-      padding: const EdgeInsets.all(16),
-      sliver: SliverToBoxAdapter(
-        child: Column(
-          children: [
-            _buildTopicCard(),
-            const SizedBox(height: 24),
-            _buildProgressSection(),
-            const SizedBox(height: 24),
-            _buildStartButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopicCard() {
+  Widget _buildTopicCard(LearningTopic topic, int index) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
         color: AppTheme.cardColor,
         borderRadius: AppTheme.largeRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
+        elevation: 0,
+        child: InkWell(
+          borderRadius: AppTheme.largeRadius,
+          onTap: () {
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    MaterialDetailScreen(topic: topic),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(1.0, 0.0),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeInOut,
+                    )),
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 300),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: topic.gradient),
-              borderRadius: AppTheme.mediumRadius,
+              borderRadius: AppTheme.largeRadius,
+              border: Border.all(color: AppTheme.borderColor),
             ),
-            child: Icon(
-              topic.icon,
-              size: 48,
-              color: AppTheme.whiteColor,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            topic.title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimaryColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            topic.description,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppTheme.textSecondaryColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: AppTheme.mediumRadius,
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Yang akan Anda pelajari:',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...topic.materials.map((material) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               children: [
-                const Icon(
-                  Icons.check_circle_outline,
-                  size: 20,
-                  color: AppTheme.accentColor,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    material.title,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondaryColor,
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: topic.gradient),
+                    borderRadius: AppTheme.mediumRadius,
                   ),
+                  child: Icon(
+                    topic.icon,
+                    size: 32,
+                    color: AppTheme.whiteColor,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        topic.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        topic.description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.book_outlined,
+                            size: 16,
+                            color: AppTheme.primaryColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${topic.materials.length} Materi',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.quiz,
+                            size: 16,
+                            color: AppTheme.warningColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${topic.quiz.questions.length} Kuis',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.warningColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppTheme.textTertiaryColor,
                 ),
               ],
             ),
-          )).toList(),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(
-                Icons.quiz,
-                size: 20,
-                color: AppTheme.warningColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${topic.quiz.questions.length} Pertanyaan Kuis',
-                style: const TextStyle(
-                  color: AppTheme.textSecondaryColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Material Detail Screen
+class MaterialDetailScreen extends StatefulWidget {
+  final LearningTopic topic;
+
+  const MaterialDetailScreen({Key? key, required this.topic}) : super(key: key);
+
+  @override
+  State<MaterialDetailScreen> createState() => _MaterialDetailScreenState();
+}
+
+class _MaterialDetailScreenState extends State<MaterialDetailScreen> 
+    with TickerProviderStateMixin {
+  int currentMaterialIndex = 0;
+  late AnimationController _contentAnimationController;
+  late Animation<double> _contentFadeAnimation;
+  late Animation<Offset> _contentSlideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _contentAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    
+    _contentFadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(_contentAnimationController);
+    
+    _contentSlideAnimation = Tween<Offset>(
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _contentAnimationController,
+      curve: Curves.easeOut,
+    ));
+
+    _contentAnimationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _contentAnimationController.dispose();
+    super.dispose();
+  }
+
+  void _animateContentChange() {
+    _contentAnimationController.reset();
+    _contentAnimationController.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final material = widget.topic.materials[currentMaterialIndex];
+    
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: AppTheme.primaryColor,
+        title: Text(
+          widget.topic.title,
+          style: const TextStyle(color: AppTheme.whiteColor),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.whiteColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildProgressBar(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: FadeTransition(
+                opacity: _contentFadeAnimation,
+                child: SlideTransition(
+                  position: _contentSlideAnimation,
+                  child: _buildMaterialCard(material),
                 ),
               ),
-            ],
+            ),
           ),
+          _buildNavigationSection(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStartButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            hasStartedLearning = true;
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppTheme.mediumRadius,
-          ),
-        ),
-        child: const Text(
-          'Mulai Belajar',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.whiteColor,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMaterialContent() {
-    final material = topic.materials[currentMaterialIndex];
-    
-    return SliverPadding(
-      padding: const EdgeInsets.all(16),
-      sliver: SliverToBoxAdapter(
-        child: Column(
-          children: [
-            _buildProgressBar(),
-            const SizedBox(height: 20),
-            _buildMaterialCard(material),
-            const SizedBox(height: 20),
-            _buildNavigationButtons(),
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildProgressBar() {
-    final progress = (currentMaterialIndex + 1) / topic.materials.length;
+    final progress = (currentMaterialIndex + 1) / widget.topic.materials.length;
     
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.cardColor,
-        borderRadius: AppTheme.mediumRadius,
+        border: Border(bottom: BorderSide(color: AppTheme.borderColor)),
       ),
       child: Column(
         children: [
@@ -464,7 +599,7 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Materi ${currentMaterialIndex + 1} dari ${topic.materials.length}',
+                'Materi ${currentMaterialIndex + 1} dari ${widget.topic.materials.length}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimaryColor,
@@ -499,8 +634,8 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -516,13 +651,13 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildPelajaranContent(material),
+          _buildMaterialContent(material),
         ],
       ),
     );
   }
 
-  Widget _buildPelajaranContent(LearningMaterial material) {
+  Widget _buildMaterialContent(LearningMaterial material) {
     if (material.type == MaterialType.steps) {
       return _buildStepsContent(material.content);
     }
@@ -542,8 +677,8 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
       children: steps.asMap().entries.map((entry) {
         final index = entry.key;
         final step = entry.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -582,282 +717,102 @@ class _InteractiveLearningScreenState extends State<InteractiveLearningScreen> {
     );
   }
 
-  Widget _buildNavigationButtons() {
-    return Row(
-      children: [
-        if (currentMaterialIndex > 0)
+  Widget _buildNavigationSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+      ),
+      child: Row(
+        children: [
+          if (currentMaterialIndex > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () {
+                  setState(() {
+                    currentMaterialIndex--;
+                  });
+                  _animateContentChange();
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppTheme.mediumRadius,
+                  ),
+                ),
+                child: const Text(
+                  'Sebelumnya',
+                  style: TextStyle(color: AppTheme.primaryColor),
+                ),
+              ),
+            ),
+          if (currentMaterialIndex > 0) const SizedBox(width: 12),
           Expanded(
-            child: OutlinedButton(
+            child: ElevatedButton(
               onPressed: () {
-                setState(() {
-                  currentMaterialIndex--;
-                });
+                if (currentMaterialIndex < widget.topic.materials.length - 1) {
+                  setState(() {
+                    currentMaterialIndex++;
+                  });
+                  _animateContentChange();
+                } else {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          QuizScreen(
+                        quiz: widget.topic.quiz,
+                        onComplete: (result) {
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) =>
+                                  QuizResultScreen(
+                                result: result,
+                                topic: widget.topic,
+                              ),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return FadeTransition(opacity: animation, child: child);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(1.0, 0.0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        );
+                      },
+                    ),
+                  );
+                }
               },
-              style: OutlinedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                side: const BorderSide(color: AppTheme.primaryColor),
                 shape: RoundedRectangleBorder(
                   borderRadius: AppTheme.mediumRadius,
                 ),
               ),
-              child: const Text(
-                'Sebelumnya',
-                style: TextStyle(color: AppTheme.primaryColor),
-              ),
-            ),
-          ),
-        if (currentMaterialIndex > 0) const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              if (currentMaterialIndex < topic.materials.length - 1) {
-                setState(() {
-                  currentMaterialIndex++;
-                });
-              } else {
-                setState(() {
-                  hasCompletedMaterials = true;
-                });
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: AppTheme.mediumRadius,
-              ),
-            ),
-            child: Text(
-              currentMaterialIndex < topic.materials.length - 1 
-                  ? 'Selanjutnya' 
-                  : 'Mulai Kuis',
-              style: const TextStyle(
-                color: AppTheme.whiteColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuizSection() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: topic.gradient),
-            borderRadius: AppTheme.largeRadius,
-          ),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.quiz,
-                size: 64,
-                color: AppTheme.whiteColor,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Saatnya Kuis!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              child: Text(
+                currentMaterialIndex < widget.topic.materials.length - 1 
+                    ? 'Selanjutnya' 
+                    : 'Mulai Kuis',
+                style: const TextStyle(
                   color: AppTheme.whiteColor,
+                  fontWeight: FontWeight.w600,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Uji pemahaman Anda dengan ${topic.quiz.questions.length} pertanyaan',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.whiteColor.withOpacity(0.9),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => QuizScreen(
-                          quiz: topic.quiz,
-                          onComplete: (result) {
-                            setState(() {
-                              quizResult = result;
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.whiteColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppTheme.mediumRadius,
-                    ),
-                  ),
-                  child: Text(
-                    'Mulai Kuis',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: topic.gradient.first,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuizResult() {
-    final result = quizResult!;
-    final isExcellent = result.percentage >= 80;
-    final isGood = result.percentage >= 60;
-    
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor,
-                borderRadius: AppTheme.largeRadius,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    isExcellent ? Icons.emoji_events : isGood ? Icons.thumb_up : Icons.refresh,
-                    size: 64,
-                    color: isExcellent ? AppTheme.warningColor : isGood ? AppTheme.successColor : AppTheme.errorColor,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    isExcellent ? 'Luar Biasa!' : isGood ? 'Bagus!' : 'Perlu Latihan Lagi',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Skor: ${result.score}/100',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatItem('Benar', '${result.correctAnswers}', AppTheme.successColor),
-                      _buildStatItem('Salah', '${result.totalQuestions - result.correctAnswers}', AppTheme.errorColor),
-                      _buildStatItem('Persentase', '${result.percentage.round()}%', AppTheme.primaryColor),
-                    ],
-                  ),
-                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        hasStartedLearning = false;
-                        hasCompletedMaterials = false;
-                        currentMaterialIndex = 0;
-                        quizResult = null;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: AppTheme.primaryColor),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppTheme.mediumRadius,
-                      ),
-                    ),
-                    child: const Text(
-                      'Ulangi Materi',
-                      style: TextStyle(color: AppTheme.primaryColor),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        quizResult = null;
-                        hasCompletedMaterials = true;
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppTheme.mediumRadius,
-                      ),
-                    ),
-                    child: const Text(
-                      'Ulangi Kuis',
-                      style: TextStyle(
-                        color: AppTheme.whiteColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppTheme.textSecondaryColor,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -877,16 +832,41 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   int currentQuestionIndex = 0;
   List<int?> selectedAnswers = [];
   bool isAnswered = false;
   bool showExplanation = false;
+  late AnimationController _questionAnimationController;
+  late Animation<double> _questionFadeAnimation;
 
   @override
   void initState() {
     super.initState();
     selectedAnswers = List.filled(widget.quiz.questions.length, null);
+    
+    _questionAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    
+    _questionFadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(_questionAnimationController);
+
+    _questionAnimationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _questionAnimationController.dispose();
+    super.dispose();
+  }
+
+  void _animateQuestionChange() {
+    _questionAnimationController.reset();
+    _questionAnimationController.forward();
   }
 
   @override
@@ -910,20 +890,26 @@ class _QuizScreenState extends State<QuizScreen> {
         children: [
           _buildQuizProgress(),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildQuestionCard(question),
-                  const SizedBox(height: 20),
-                  Expanded(child: _buildAnswerOptions(question)),
-                  if (showExplanation) _buildExplanation(question),
-                  _buildActionButton(),
-                ],
+            child: FadeTransition(
+              opacity: _questionFadeAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildQuestionCard(question),
+                    const SizedBox(height: 20),
+                    _buildAnswerOptions(question),
+                    if (showExplanation) 
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: _buildExplanation(question),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
+          _buildActionButton(),
         ],
       ),
     );
@@ -934,7 +920,10 @@ class _QuizScreenState extends State<QuizScreen> {
     
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppTheme.cardColor,
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(bottom: BorderSide(color: AppTheme.borderColor)),
+      ),
       child: Column(
         children: [
           Row(
@@ -979,8 +968,8 @@ class _QuizScreenState extends State<QuizScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -997,9 +986,10 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildAnswerOptions(Question question) {
-    return ListView.builder(
-      itemCount: question.options.length,
-      itemBuilder: (context, index) {
+    return Column(
+      children: question.options.asMap().entries.map((entry) {
+        final index = entry.key;
+        final option = entry.value;
         final isSelected = selectedAnswers[currentQuestionIndex] == index;
         final isCorrect = index == question.correctAnswer;
         final isWrong = isAnswered && isSelected && !isCorrect;
@@ -1023,8 +1013,8 @@ class _QuizScreenState extends State<QuizScreen> {
           textColor = AppTheme.primaryColor;
         }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
           child: Material(
             color: backgroundColor,
             borderRadius: AppTheme.mediumRadius,
@@ -1063,7 +1053,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        question.options[index],
+                        option,
                         style: TextStyle(
                           fontSize: 16,
                           color: textColor,
@@ -1089,13 +1079,12 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
         );
-      },
+      }).toList(),
     );
   }
 
   Widget _buildExplanation(Question question) {
     return Container(
-      margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.secondaryColor.withOpacity(0.2),
@@ -1141,8 +1130,12 @@ class _QuizScreenState extends State<QuizScreen> {
     final hasAnswer = selectedAnswers[currentQuestionIndex] != null;
     final isLastQuestion = currentQuestionIndex == widget.quiz.questions.length - 1;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+      ),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
@@ -1197,6 +1190,7 @@ class _QuizScreenState extends State<QuizScreen> {
         isAnswered = false;
         showExplanation = false;
       });
+      _animateQuestionChange();
     } else {
       _finishQuiz();
     }
@@ -1219,7 +1213,237 @@ class _QuizScreenState extends State<QuizScreen> {
       answers: answers,
     );
 
-    Navigator.pop(context);
     widget.onComplete(result);
+  }
+}
+
+// Quiz Result Screen
+class QuizResultScreen extends StatefulWidget {
+  final QuizResult result;
+  final LearningTopic topic;
+
+  const QuizResultScreen({
+    Key? key,
+    required this.result,
+    required this.topic,
+  }) : super(key: key);
+
+  @override
+  State<QuizResultScreen> createState() => _QuizResultScreenState();
+}
+
+class _QuizResultScreenState extends State<QuizResultScreen> 
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutBack,
+    ));
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(_animationController);
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isExcellent = widget.result.percentage >= 80;
+    final isGood = widget.result.percentage >= 60;
+    
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: AppTheme.primaryColor,
+        title: const Text(
+          'Hasil Kuis',
+          style: TextStyle(color: AppTheme.whiteColor),
+        ),
+        automaticallyImplyLeading: false,
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardColor,
+                    borderRadius: AppTheme.largeRadius,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        isExcellent ? Icons.emoji_events : isGood ? Icons.thumb_up : Icons.refresh,
+                        size: 64,
+                        color: isExcellent ? AppTheme.warningColor : isGood ? AppTheme.successColor : AppTheme.errorColor,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isExcellent ? 'Luar Biasa!' : isGood ? 'Bagus!' : 'Perlu Latihan Lagi',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Skor: ${widget.result.score}/100',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStatItem('Benar', '${widget.result.correctAnswers}', AppTheme.successColor),
+                          _buildStatItem('Salah', '${widget.result.totalQuestions - widget.result.correctAnswers}', AppTheme.errorColor),
+                          _buildStatItem('Persentase', '${widget.result.percentage.round()}%', AppTheme.primaryColor),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) =>
+                                  const LearningHomeScreen(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(-1.0, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                );
+                              },
+                            ),
+                            (route) => false,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AppTheme.mediumRadius,
+                          ),
+                        ),
+                        child: const Text(
+                          'Kembali ke Beranda',
+                          style: TextStyle(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) =>
+                                  MaterialDetailScreen(topic: widget.topic),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(1.0, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AppTheme.mediumRadius,
+                          ),
+                        ),
+                        child: const Text(
+                          'Ulangi Materi',
+                          style: TextStyle(
+                            color: AppTheme.whiteColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppTheme.textSecondaryColor,
+          ),
+        ),
+      ],
+    );
   }
 }

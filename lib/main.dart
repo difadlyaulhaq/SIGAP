@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
             '/detect': (context) => const WoundDetectionScreen(),
             '/articles': (context) => const ArticlesScreen(),
             '/chatbot': (context) => const ChatbotScreen(),
-            '/learning': (context) => const InteractiveLearningScreen(),
+            '/learning': (context) => const LearningHomeScreen(),
           },
         ),
       ),
