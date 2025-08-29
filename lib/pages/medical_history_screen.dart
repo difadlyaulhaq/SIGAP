@@ -10,9 +10,20 @@ class MedicalHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Riwayat Medis'),
-        backgroundColor: primaryColor,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Hero(
+          tag: "medical_history_appbar", // Unique hero tag
+          child: AppBar(
+            title: const Text('Riwayat Medis'),
+            backgroundColor: primaryColor,
+            automaticallyImplyLeading: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
