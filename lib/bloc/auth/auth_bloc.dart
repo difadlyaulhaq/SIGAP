@@ -4,80 +4,188 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:meta/meta.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart';
 
-
 part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   StreamSubscription<User?>? _userSubscription;
+  bool _isInitialCheck = true; // Flag untuk membedakan check pertama vs perubahan
 
   AuthBloc({required AuthRepository authRepository})
       : _authRepository = authRepository,
         super(AuthInitial()) {
 
+    // Daftarkan semua event handler
+    on<AuthCheckRequested>(_onAuthCheckRequested);
+    on<AuthLoginRequested>(_onAuthLoginRequested);
+    on<AuthSignupRequested>(_onAuthSignupRequested);
+    on<AuthLogoutRequested>(_onAuthLogoutRequested);
+
+    // PERBAIKAN: Stream listener hanya untuk perubahan SETELAH initial check
     _userSubscription = _authRepository.user.listen((user) {
-      // Event ini bisa dipicu saat login, logout, atau saat token di-refresh
-      add(AuthCheckRequested());
+      // Jangan trigger saat startup/initial check
+      if (!_isInitialCheck) {
+        print('Firebase User changed (not initial): ${user?.email ?? 'null'}');
+        add(AuthCheckRequested());
+      }
     });
+  }
 
-    on<AuthCheckRequested>((event, emit) async {
-      // IMPLEMENTASI: Logika pengecekan dibuat lebih sederhana dan cepat
-      try {
-        final user = _authRepository.currentUser; // Menggunakan getter baru
-        if (user != null) {
-          emit(AuthAuthenticated(user: user));
-        } else {
-          emit(AuthUnauthenticated());
-        }
-      } catch (e) {
+  Future<void> _onAuthCheckRequested(
+    AuthCheckRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    print('AuthCheckRequested received (initial: $_isInitialCheck)');
+    
+    // Emit loading hanya jika bukan dari state loading
+    if (state is! AuthLoading) {
+      emit(AuthLoading());
+    }
+    
+    try {
+      // Gunakan currentUser getter dari repository
+      final currentUser = _authRepository.currentUser;
+      print('Current user: ${currentUser?.email ?? 'null'}');
+      
+      // Beri delay kecil untuk memastikan UI splash screen terlihat
+      if (_isInitialCheck) {
+        await Future.delayed(const Duration(milliseconds: 1000));
+      }
+      
+      if (currentUser != null) {
+        emit(AuthAuthenticated(user: currentUser));
+      } else {
         emit(AuthUnauthenticated());
       }
-    });
-
-    on<AuthLoginRequested>((event, emit) async {
-      emit(AuthLoading());
-      try {
-        await _authRepository.logIn(email: event.email, password: event.password);
-        // Event AuthCheckRequested akan otomatis ter-trigger oleh stream listener di atas
-      } catch (e) {
-        emit(AuthFailure(message: e.toString()));
+      
+      // Set flag bahwa initial check sudah selesai
+      if (_isInitialCheck) {
+        _isInitialCheck = false;
       }
-    });
-
-    on<AuthSignupRequested>((event, emit) async {
-      emit(AuthLoading());
-      try {
-        await _authRepository.signUp(
-          email: event.email,
-          password: event.password,
-          nama: event.nama,
-          jenisKelamin: event.jenisKelamin,
-          tanggalLahir: event.tanggalLahir,
-          telepon: event.telepon,
-          alamat: event.alamat,
-          golonganDarah: event.golonganDarah,
-          kontakDarurat: event.kontakDarurat,
-          alergi: event.alergi,
-          riwayatPenyakit: event.riwayatPenyakit,
-          obatRutin: event.obatRutin,
-          catatanTambahan: event.catatanTambahan,
-        );
-         // Event AuthCheckRequested akan otomatis ter-trigger oleh stream listener
-      } catch (e) {
-        emit(AuthFailure(message: e.toString()));
+      
+    } catch (e) {
+      print('AuthCheckRequested error: $e');
+      emit(AuthUnauthenticated());
+      
+      // Set flag bahwa initial check sudah selesai meskipun error
+      if (_isInitialCheck) {
+        _isInitialCheck = false;
       }
-    });
+    }
+  }
 
-    on<AuthLogoutRequested>((event, emit) async {
-      emit(AuthLoading());
-      try {
-        await _authRepository.logOut();
-        emit(AuthUnauthenticated());
-      } catch (e) {
-        emit(AuthFailure(message: e.toString()));
+  Future<void> _onAuthLoginRequested(
+    AuthLoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    print('Login requested for: ${event.email}');
+    emit(AuthLoading());
+    
+    try {
+      await _authRepository.logIn(
+        email: event.email, 
+        password: event.password
+      );
+      
+      // Tunggu sebentar untuk memastikan Firebase sudah update
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final currentUser = _authRepository.currentUser;
+      if (currentUser != null) {
+        emit(AuthAuthenticated(user: currentUser));
+      } else {
+        throw Exception('Login berhasil tapi user tidak ditemukan');
       }
-    });
+      
+    } catch (e) {
+      print('Login error: $e');
+      emit(AuthFailure(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onAuthSignupRequested(
+    AuthSignupRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    print('Signup requested for: ${event.email}');
+    emit(AuthLoading());
+    
+    try {
+      await _authRepository.signUp(
+        email: event.email,
+        password: event.password,
+        nama: event.nama,
+        jenisKelamin: event.jenisKelamin,
+        tanggalLahir: event.tanggalLahir,
+        telepon: event.telepon,
+        alamat: event.alamat,
+        golonganDarah: event.golonganDarah,
+        kontakDarurat: event.kontakDarurat,
+        alergi: event.alergi,
+        riwayatPenyakit: event.riwayatPenyakit,
+        obatRutin: event.obatRutin,
+        catatanTambahan: event.catatanTambahan,
+      );
+      
+      // Tunggu sebentar untuk memastikan Firebase sudah update
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final currentUser = _authRepository.currentUser;
+      if (currentUser != null) {
+        emit(AuthAuthenticated(user: currentUser));
+      } else {
+        throw Exception('Registrasi berhasil tapi user tidak ditemukan');
+      }
+      
+    } catch (e) {
+      print('Signup error: $e');
+      emit(AuthFailure(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onAuthLogoutRequested(
+    AuthLogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    print('Logout requested');
+    emit(AuthLoading());
+    
+    try {
+      await _authRepository.logOut();
+      emit(AuthUnauthenticated());
+    } catch (e) {
+      print('Logout error: $e');
+      // Tetap emit unauthenticated meskipun ada error
+      emit(AuthUnauthenticated());
+    }
+  }
+
+  // Helper method untuk handle error message
+  String _getErrorMessage(dynamic error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'user-not-found':
+          return 'Email tidak ditemukan. Silakan daftar terlebih dahulu.';
+        case 'wrong-password':
+          return 'Password salah. Silakan coba lagi.';
+        case 'email-already-in-use':
+          return 'Email sudah digunakan. Silakan gunakan email lain.';
+        case 'weak-password':
+          return 'Password terlalu lemah. Gunakan minimal 8 karakter.';
+        case 'invalid-email':
+          return 'Format email tidak valid.';
+        case 'too-many-requests':
+          return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+        case 'network-request-failed':
+          return 'Gagal terhubung ke internet. Periksa koneksi Anda.';
+        case 'invalid-credential':
+          return 'Email atau password salah. Silakan coba lagi.';
+        default:
+          return error.message ?? 'Terjadi kesalahan. Silakan coba lagi.';
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
   }
 
   @override

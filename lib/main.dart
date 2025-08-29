@@ -10,7 +10,7 @@ import 'package:rescuein/pages/learning_page.dart';
 import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/pages/profile_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
-import 'package:rescuein/pages/splash_screen.dart'; // Pastikan import splash screen
+import 'package:rescuein/pages/splash_screen.dart';
 import 'package:rescuein/pages/wound_detection_screen.dart';
 import 'package:rescuein/theme/theme.dart';
 import 'firebase_options.dart';
@@ -37,9 +37,7 @@ class MyApp extends StatelessWidget {
       child: BlocProvider(
         create: (context) => AuthBloc(
           authRepository: RepositoryProvider.of<AuthRepository>(context),
-        )..add(
-            AuthCheckRequested(),
-          ), // Memeriksa status login saat aplikasi dimulai
+        ), // PERBAIKAN: JANGAN trigger AuthCheckRequested di sini!
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SIGAP',
@@ -62,12 +60,11 @@ class MyApp extends StatelessWidget {
             ),
           ),
 
-          // DIUBAH: Halaman awal sekarang adalah SplashScreen, yang akan menangani logika navigasi.
+          // Halaman awal adalah SplashScreen
           home: const SplashScreen(),
 
           // Daftarkan semua rute untuk navigasi dengan nama
           routes: {
-            // Rute '/splash' bisa dihapus jika tidak digunakan di tempat lain
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
             '/home': (context) => const HomeScreen(),
