@@ -122,18 +122,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return Column(
       children: [
         Container(
-          width: 100,
-          height: 100,
+          width: 150,
+          height: 150,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: primaryGradient,
-            ),
+            color: backgroundLight,
             borderRadius: BorderRadius.circular(25),
             boxShadow: [cardShadow],
           ),
-          child: Icon(Icons.medical_services_rounded, size: 50, color: whiteColor),
+          child: Image.asset('assets/logo.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: AppSpacing.md),
         Text('Selamat Datang Kembali', style: headingLargeTextStyle),
