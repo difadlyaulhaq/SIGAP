@@ -138,6 +138,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: surfaceColor,
+      appBar: _buildAppBar(),
       body: SafeArea(
         // Menggunakan BlocBuilder untuk merender UI berdasarkan state dari ProfileBloc
         child: BlocBuilder<ProfileBloc, ProfileState>(
@@ -153,36 +154,26 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
-                  child: CustomScrollView(
-                    slivers: [
-                      // Custom App Bar
-                      _buildSliverAppBar(),
-                      
-                      // Profile Content
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          child: Column(
-                            children: [
-                              // Profile Header, kini dengan data dinamis
-                              _buildProfileHeader(state),
-                              
-                              const SizedBox(height: AppSpacing.xl),
-                              
-                              // Menu Items, kini dengan navigasi
-                              _buildMenuSection(state),
-                              
-                              const SizedBox(height: AppSpacing.xl),
-                              
-                              // Logout Button
-                              _buildLogoutButton(),
-                              
-                              const SizedBox(height: AppSpacing.lg),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        // Profile Header, kini dengan data dinamis
+                        _buildProfileHeader(state),
+                        
+                        const SizedBox(height: AppSpacing.xl),
+                        
+                        // Menu Items, kini dengan navigasi
+                        _buildMenuSection(state),
+                        
+                        const SizedBox(height: AppSpacing.xl),
+                        
+                        // Logout Button
+                        _buildLogoutButton(),
+                        
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -209,28 +200,24 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 120,
-      floating: false,
-      pinned: true,
-      backgroundColor: primaryColor,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          'Profil Saya',
-          style: GoogleFonts.inter(
-            color: whiteColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(
+        'Profil Saya',
+        style: GoogleFonts.inter(
+          color: whiteColor,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
         ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: primaryGradient,
-            ),
+      ),
+      backgroundColor: primaryColor,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: primaryGradient,
           ),
         ),
       ),

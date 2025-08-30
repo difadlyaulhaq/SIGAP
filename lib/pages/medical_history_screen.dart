@@ -10,21 +10,8 @@ class MedicalHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Hero(
-          tag: "medical_history_appbar", // Unique hero tag
-          child: AppBar(
-            title: const Text('Riwayat Medis'),
-            backgroundColor: primaryColor,
-            automaticallyImplyLeading: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-        ),
-      ),
+      backgroundColor: surfaceColor,
+      appBar: _buildAppBar(context),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -61,14 +48,45 @@ class MedicalHistoryScreen extends StatelessWidget {
     );
   }
 
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: const Text(
+        'Riwayat Medis',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      backgroundColor: primaryColor,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: primaryGradient,
+          ),
+        ),
+      ),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
   Widget _buildSectionCard(BuildContext context,
       {required IconData icon,
       required String title,
       required List<String> items,
       required String noneMessage}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: largeRadius,
+        boxShadow: [cardShadow],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -76,19 +94,61 @@ class MedicalHistoryScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: primaryColor, size: 28),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: smallRadius,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 24),
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Text(title, style: headingSmallTextStyle),
               ],
             ),
-            const Divider(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
+            Divider(
+              height: 1,
+              color: borderColor,
+            ),
+            const SizedBox(height: AppSpacing.md),
             if (items.isEmpty || (items.length == 1 && items.first.contains('Tidak ada')))
-              Text(noneMessage, style: bodyMediumTextStyle.copyWith(color: textSecondaryColor))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: Text(
+                  noneMessage,
+                  style: bodyMediumTextStyle.copyWith(
+                    color: textSecondaryColor,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              )
             else
-              ...items.map((item) => ListTile(
-                    leading: Icon(Icons.check_circle_outline, color: successColor),
-                    title: Text(item, style: bodyMediumTextStyle),
-                  )),
+              ...items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: successColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: bodyMediumTextStyle,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
           ],
         ),
       ),
@@ -96,9 +156,12 @@ class MedicalHistoryScreen extends StatelessWidget {
   }
 
   Widget _buildNotesCard(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: largeRadius,
+        boxShadow: [cardShadow],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -106,17 +169,47 @@ class MedicalHistoryScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.note_alt_outlined, color: primaryColor, size: 28),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: smallRadius,
+                  ),
+                  child: Icon(Icons.note_alt_outlined, color: primaryColor, size: 24),
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Text('Catatan Tambahan', style: headingSmallTextStyle),
               ],
             ),
-            const Divider(height: AppSpacing.lg),
-            Text(
-              medicalHistory.catatanTambahan.isEmpty
-                  ? 'Tidak ada catatan tambahan.'
-                  : medicalHistory.catatanTambahan,
-              style: bodyMediumTextStyle.copyWith(color: textSecondaryColor, height: 1.5),
+            const SizedBox(height: AppSpacing.md),
+            Divider(
+              height: 1,
+              color: borderColor,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: smallRadius,
+                border: Border.all(color: borderColor),
+              ),
+              child: Text(
+                medicalHistory.catatanTambahan.isEmpty
+                    ? 'Tidak ada catatan tambahan.'
+                    : medicalHistory.catatanTambahan,
+                style: bodyMediumTextStyle.copyWith(
+                  color: medicalHistory.catatanTambahan.isEmpty 
+                      ? textSecondaryColor 
+                      : textPrimaryColor,
+                  height: 1.5,
+                  fontStyle: medicalHistory.catatanTambahan.isEmpty 
+                      ? FontStyle.italic 
+                      : FontStyle.normal,
+                ),
+              ),
             ),
           ],
         ),
