@@ -42,4 +42,4 @@
             <action android:name="android.intent.action.DIAL" />
         </intent>
         </queries>
-</manifest>
+</manifest>             
