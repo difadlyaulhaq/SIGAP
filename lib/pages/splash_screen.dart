@@ -17,42 +17,39 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  
-  bool _hasNavigated = false; // Flag untuk mencegah navigasi berulang
+ 
+  bool _hasNavigated = false;
 
   @override
   void initState() {
     super.initState();
-    
-    // Inisialisasi animasi
+   
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800), 
+      duration: const Duration(milliseconds: 800),
       vsync: this
     );
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1200), 
+      duration: const Duration(milliseconds: 1200),
       vsync: this
     );
-    
+   
     _fadeAnimation = CurvedAnimation(
-      parent: _fadeController, 
+      parent: _fadeController,
       curve: Curves.easeIn
     );
     _scaleAnimation = CurvedAnimation(
-      parent: _scaleController, 
+      parent: _scaleController,
       curve: Curves.elasticOut
     );
 
-    // Mulai animasi
     _scaleController.forward();
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) _fadeController.forward();
     });
-    
-    // PERBAIKAN UTAMA: Trigger manual check auth setelah delay
+   
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted && !_hasNavigated) {
-        print('Triggering AuthCheckRequested from SplashScreen'); // Debug log
+        print('Triggering AuthCheckRequested from SplashScreen');
         context.read<AuthBloc>().add(AuthCheckRequested());
       }
     });
@@ -67,10 +64,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   void _navigateToScreen(Widget screen) {
     if (_hasNavigated || !mounted) return;
-    
+   
     _hasNavigated = true;
-    print('Navigating to: ${screen.runtimeType}'); // Debug log
-    
+    print('Navigating to: ${screen.runtimeType}');
+   
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => screen),
       (route) => false,
@@ -79,136 +76,183 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    
+    final logoSize = screenWidth * 0.25;
+    final titleFontSize = screenWidth * 0.12;
+    final subtitleFontSize = screenWidth * 0.04;
+    final loadingTextFontSize = screenWidth * 0.035;
+    
+    final isTablet = screenWidth > 600;
+    final isSmallScreen = screenHeight < 700;
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        print('AuthState changed to: ${state.runtimeType}'); // Debug log
-        
-        // Navigasi hanya setelah proses checking selesai
+        print('AuthState changed to: ${state.runtimeType}');
+       
         if (state is AuthAuthenticated) {
           _navigateToScreen(const HomeScreen());
         } else if (state is AuthUnauthenticated) {
           _navigateToScreen(const LoginScreen());
         } else if (state is AuthFailure) {
-          // Jika ada error, arahkan ke login
           _navigateToScreen(const LoginScreen());
         }
       },
       child: Scaffold(
-        backgroundColor: surfaceColor, // Gunakan tema yang konsisten
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        backgroundColor: surfaceColor,
+        body: SafeArea(
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: primaryGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo dengan animasi scale dan fade
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: whiteColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Center(
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        fit: BoxFit.cover,
+                      child: IntrinsicHeight(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              flex: isSmallScreen ? 1 : 2,
+                              child: const SizedBox(),
+                            ),
+                            
+                            ScaleTransition(
+                              scale: _scaleAnimation,
+                              child: FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Container(
+                                  width: logoSize.clamp(80.0, 160.0),
+                                  height: logoSize.clamp(80.0, 160.0),
+                                  padding: EdgeInsets.all(screenWidth * 0.04),
+                                  decoration: BoxDecoration(
+                                    color: whiteColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: isTablet ? 30 : 20,
+                                        offset: Offset(0, isTablet ? 12 : 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ),
+                           
+                            SizedBox(height: screenHeight * 0.05),
+                           
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.1,
+                                ),
+                                child: Text(
+                                  "SIGAP",
+                                  style: TextStyle(
+                                    fontSize: titleFontSize.clamp(32.0, 64.0),
+                                    fontWeight: FontWeight.w800,
+                                    color: whiteColor,
+                                    letterSpacing: 2,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        offset: const Offset(0, 2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                           
+                            SizedBox(height: screenHeight * 0.02),
+                           
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.15,
+                                ),
+                                child: Text(
+                                  "Your Personal First Aid Assistant",
+                                  style: TextStyle(
+                                    fontSize: subtitleFontSize.clamp(12.0, 20.0),
+                                    color: whiteColor.withOpacity(0.9),
+                                    fontWeight: FontWeight.w400,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        offset: const Offset(0, 1),
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                           
+                            Flexible(
+                              flex: isSmallScreen ? 1 : 3,
+                              child: SizedBox(height: screenHeight * 0.1),
+                            ),
+                           
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Column(
+                                children: [
+                                  SizedBox(
+                                    width: screenWidth * 0.08,
+                                    height: screenWidth * 0.08,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(whiteColor),
+                                      strokeWidth: isTablet ? 4.0 : 3.0,
+                                    ),
+                                  ),
+                                  SizedBox(height: screenHeight * 0.025),
+                                  Text(
+                                    "Memuat aplikasi...",
+                                    style: TextStyle(
+                                      color: whiteColor.withOpacity(0.8),
+                                      fontSize: loadingTextFontSize.clamp(10.0, 18.0),
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            Flexible(
+                              flex: 1,
+                              child: const SizedBox(),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: AppSpacing.xl),
-                
-                // Judul aplikasi
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Text(
-                    "SIGAP",
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w800,
-                      color: whiteColor,
-                      letterSpacing: 2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: AppSpacing.md),
-                
-                // Subtitle
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Text(
-                    "Your Personal First Aid Assistant",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: whiteColor.withOpacity(0.9),
-                      fontWeight: FontWeight.w400,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.2),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                
-                const SizedBox(height: AppSpacing.xxl * 2),
-                
-                // Loading indicator dengan animasi
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(whiteColor),
-                          strokeWidth: 3.0,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        "Memuat aplikasi...",
-                        style: TextStyle(
-                          color: whiteColor.withOpacity(0.8),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

@@ -14,14 +14,13 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen>
     with TickerProviderStateMixin {
   final List<GlobalKey<FormState>> _formKeys = [
-    GlobalKey<FormState>(), // Key untuk Personal Info (Langkah 0)
-    GlobalKey<FormState>(), // Key untuk Medical Info (Langkah 1)
-    GlobalKey<FormState>(), // Key untuk Medical History (Langkah 2)
-    GlobalKey<FormState>(), // Key untuk Account (Langkah 3)
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
   ];
   final _pageController = PageController();
 
-  // Controllers
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -31,7 +30,6 @@ class _SignupScreenState extends State<SignupScreen>
   final _emergencyContactController = TextEditingController();
   final _additionalNotesController = TextEditingController();
 
-  // State variables
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
@@ -40,12 +38,10 @@ class _SignupScreenState extends State<SignupScreen>
   DateTime? _selectedDate;
   String _selectedBloodType = '';
 
-  // Medical history variables
   List<String> _selectedAllergies = [];
   List<String> _selectedMedicalConditions = [];
   List<String> _selectedMedications = [];
 
-  // Animation controllers
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -170,6 +166,9 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   void _showSuccessDialog() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -177,31 +176,47 @@ class _SignupScreenState extends State<SignupScreen>
         return AlertDialog(
           backgroundColor: cardColor,
           shape: RoundedRectangleBorder(borderRadius: largeRadius),
+          contentPadding: EdgeInsets.all(isTablet ? AppSpacing.xxl : AppSpacing.lg),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: isTablet ? 100 : 80,
+                height: isTablet ? 100 : 80,
                 decoration: BoxDecoration(
                     color: successColor.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(Icons.check_circle_outline, size: 50, color: successColor),
+                child: Icon(
+                  Icons.check_circle_outline, 
+                  size: isTablet ? 60 : 50, 
+                  color: successColor
+                ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text('Registrasi Berhasil!', style: headingMediumTextStyle.copyWith(color: successColor), textAlign: TextAlign.center),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
+              Text(
+                'Registrasi Berhasil!', 
+                style: headingMediumTextStyle.copyWith(
+                  color: successColor,
+                  fontSize: isTablet ? 24 : 20,
+                ), 
+                textAlign: TextAlign.center
+              ),
+              SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
               Text(
                 'Akun Anda telah berhasil dibuat. Silakan login untuk mulai menggunakan aplikasi.',
                 style: bodyMediumTextStyle.copyWith(
-                    color: textSecondaryColor, height: 1.5),
+                  color: textSecondaryColor, 
+                  height: 1.5,
+                  fontSize: isTablet ? 16 : 14,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
+                height: isTablet ? 60 : 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // Close the dialog
+                    Navigator.of(context).pop();
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (context) => const LoginScreen()),
                       (Route<dynamic> route) => false,
@@ -210,10 +225,16 @@ class _SignupScreenState extends State<SignupScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: mediumRadius),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTablet ? AppSpacing.lg : AppSpacing.md
+                    ),
                   ),
-                  child: Text('Login Sekarang', style: buttonMediumTextStyle),
+                  child: Text(
+                    'Login Sekarang', 
+                    style: buttonMediumTextStyle.copyWith(
+                      fontSize: isTablet ? 18 : 16,
+                    )
+                  ),
                 ),
               ),
             ],
@@ -246,7 +267,6 @@ class _SignupScreenState extends State<SignupScreen>
   }
 }
 
-
   void _previousStep() {
     if (_currentStep > 0) {
       setState(() => _currentStep--);
@@ -259,6 +279,11 @@ class _SignupScreenState extends State<SignupScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final isTablet = screenWidth > 600;
+    final maxWidth = isTablet ? 600.0 : double.infinity;
+
     return Scaffold(
       backgroundColor: surfaceColor,
       body: BlocListener<AuthBloc, AuthState>(
@@ -270,40 +295,45 @@ class _SignupScreenState extends State<SignupScreen>
           }
         },
         child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Column(
-                children: [
-                  _buildAppBar(),
-                  _buildProgressIndicator(),
-                    Expanded(
-                      child: PageView(
-                        controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          Form(
-                            key: _formKeys[0],
-                            child: _buildPersonalInfoStep(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Column(
+                    children: [
+                      _buildAppBar(),
+                      _buildProgressIndicator(),
+                        Expanded(
+                          child: PageView(
+                            controller: _pageController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              Form(
+                                key: _formKeys[0],
+                                child: _buildPersonalInfoStep(),
+                              ),
+                              Form(
+                                key: _formKeys[1],
+                                child: _buildMedicalInfoStep(),
+                              ),
+                              Form(
+                                key: _formKeys[2],
+                                child: _buildMedicalHistoryStep(),
+                              ),
+                              Form(
+                                key: _formKeys[3],
+                                child: _buildAccountStep(),
+                              ),
+                            ],
                           ),
-                          Form(
-                            key: _formKeys[1],
-                            child: _buildMedicalInfoStep(),
-                          ),
-                          Form(
-                            key: _formKeys[2],
-                            child: _buildMedicalHistoryStep(),
-                          ),
-                          Form(
-                            key: _formKeys[3],
-                            child: _buildAccountStep(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  _buildNavigationButtons(),
-                ],
+                        ),
+                      _buildNavigationButtons(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -313,22 +343,42 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildAppBar() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: AppSpacing.lg,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.arrow_back_ios, color: textPrimaryColor),
+            icon: Icon(
+              Icons.arrow_back_ios, 
+              color: textPrimaryColor,
+              size: isTablet ? 28 : 24,
+            ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: isTablet ? AppSpacing.lg : AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Daftar Akun Baru', style: headingMediumTextStyle),
-                Text('Langkah ${_currentStep + 1} dari 4',
-                    style: bodySmallTextStyle),
+                Text(
+                  'Daftar Akun Baru', 
+                  style: headingMediumTextStyle.copyWith(
+                    fontSize: isTablet ? 24 : 20,
+                  )
+                ),
+                Text(
+                  'Langkah ${_currentStep + 1} dari 4',
+                  style: bodySmallTextStyle.copyWith(
+                    fontSize: isTablet ? 14 : 12,
+                  )
+                ),
               ],
             ),
           ),
@@ -338,18 +388,22 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildProgressIndicator() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      margin: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Row(
         children: List.generate(4, (index) {
           bool isActive = index <= _currentStep;
           return Expanded(
             child: Container(
               margin: EdgeInsets.only(right: index < 3 ? AppSpacing.sm : 0),
-              height: 4,
+              height: isTablet ? 6 : 4,
               decoration: BoxDecoration(
                 color: isActive ? primaryColor : borderColor,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(isTablet ? 3 : 2),
               ),
             ),
           );
@@ -359,17 +413,32 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildPersonalInfoStep() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Informasi Pribadi', style: headingSmallTextStyle),
+          Text(
+            'Informasi Pribadi', 
+            style: headingSmallTextStyle.copyWith(
+              fontSize: isTablet ? 22 : 18,
+            )
+          ),
           Text(
             'Masukkan data pribadi Anda dengan benar',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: isTablet ? 16 : 14,
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildTextField(
             controller: _namaController,
             label: 'Nama Lengkap',
@@ -382,12 +451,11 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildGenderSelector(),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildDatePicker(),
-          const SizedBox(height: AppSpacing.md),
-                   const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildTextField(
             controller: _phoneController,
             label: 'Nomor Telepon',
@@ -405,7 +473,7 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildTextField(
             controller: _alamatController,
             label: 'Alamat',
@@ -425,19 +493,34 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildMedicalInfoStep() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Informasi Medis', style: headingSmallTextStyle),
+          Text(
+            'Informasi Medis', 
+            style: headingSmallTextStyle.copyWith(
+              fontSize: isTablet ? 22 : 18,
+            )
+          ),
           Text(
             'Data ini penting untuk memberikan pertolongan yang tepat',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: isTablet ? 16 : 14,
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildBloodTypeSelector(),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildTextField(
             controller: _emergencyContactController,
             label: 'Kontak Darurat',
@@ -451,9 +534,9 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.all(isTablet ? AppSpacing.lg : AppSpacing.md),
             decoration: BoxDecoration(
               color: infoColor.withOpacity(0.1),
               borderRadius: mediumRadius,
@@ -461,12 +544,19 @@ class _SignupScreenState extends State<SignupScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: infoColor),
-                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  Icons.info_outline, 
+                  color: infoColor,
+                  size: isTablet ? 24 : 20,
+                ),
+                SizedBox(width: isTablet ? AppSpacing.md : AppSpacing.sm),
                 Expanded(
                   child: Text(
                     'Informasi medis ini akan membantu kami memberikan saran kesehatan yang lebih akurat.',
-                    style: bodySmallTextStyle.copyWith(color: infoColor),
+                    style: bodySmallTextStyle.copyWith(
+                      color: infoColor,
+                      fontSize: isTablet ? 14 : 12,
+                    ),
                   ),
                 ),
               ],
@@ -478,17 +568,32 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildMedicalHistoryStep() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Riwayat Kesehatan', style: headingSmallTextStyle),
+          Text(
+            'Riwayat Kesehatan', 
+            style: headingSmallTextStyle.copyWith(
+              fontSize: isTablet ? 22 : 18,
+            )
+          ),
           Text(
             'Data riwayat kesehatan untuk memberikan pertolongan yang tepat',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: isTablet ? 16 : 14,
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildMedicalSection(
             title: 'Alergi',
             subtitle: 'Pilih alergi yang Anda miliki',
@@ -505,7 +610,7 @@ class _SignupScreenState extends State<SignupScreen>
               });
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildMedicalSection(
             title: 'Riwayat Penyakit',
             subtitle: 'Pilih penyakit yang pernah/sedang diderita',
@@ -522,7 +627,7 @@ class _SignupScreenState extends State<SignupScreen>
               });
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildMedicalSection(
             title: 'Obat yang Dikonsumsi',
             subtitle: 'Pilih obat yang rutin dikonsumsi saat ini',
@@ -539,7 +644,7 @@ class _SignupScreenState extends State<SignupScreen>
               });
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildTextField(
             controller: _additionalNotesController,
             label: 'Catatan Tambahan (Opsional)',
@@ -553,17 +658,32 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildAccountStep() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Buat Akun', style: headingSmallTextStyle),
+          Text(
+            'Buat Akun', 
+            style: headingSmallTextStyle.copyWith(
+              fontSize: isTablet ? 22 : 18,
+            )
+          ),
           Text(
             'Buat email dan password untuk akun Anda',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: isTablet ? 16 : 14,
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           _buildTextField(
             controller: _emailController,
             label: 'Email',
@@ -581,7 +701,7 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildTextField(
             controller: _passwordController,
             label: 'Password',
@@ -607,7 +727,7 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           _buildTextField(
             controller: _confirmPasswordController,
             label: 'Konfirmasi Password',
@@ -636,9 +756,9 @@ class _SignupScreenState extends State<SignupScreen>
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: isTablet ? AppSpacing.xl : AppSpacing.lg),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.all(isTablet ? AppSpacing.lg : AppSpacing.md),
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: mediumRadius,
@@ -658,17 +778,23 @@ class _SignupScreenState extends State<SignupScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Saya setuju dengan syarat dan ketentuan', style: bodyMediumTextStyle),
-                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Saya setuju dengan syarat dan ketentuan', 
+                        style: bodyMediumTextStyle.copyWith(
+                          fontSize: isTablet ? 16 : 14,
+                        )
+                      ),
+                      SizedBox(height: AppSpacing.xs),
                       GestureDetector(
                         onTap: () {
-                          // Show terms and conditions
+                          
                         },
                         child: Text(
                           'Baca syarat dan ketentuan',
                           style: bodySmallTextStyle.copyWith(
                             color: primaryColor,
                             decoration: TextDecoration.underline,
+                            fontSize: isTablet ? 14 : 12,
                           ),
                         ),
                       ),
@@ -694,6 +820,10 @@ class _SignupScreenState extends State<SignupScreen>
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final fieldHeight = isTablet ? 60.0 : 56.0;
+
     bool obscureText = false;
     if (isPassword) {
       if (controller == _passwordController) {
@@ -705,27 +835,48 @@ class _SignupScreenState extends State<SignupScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.sm),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          style: bodyLargeTextStyle,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: bodyMediumTextStyle.copyWith(color: textTertiaryColor),
-            prefixIcon: Icon(prefixIcon, color: textTertiaryColor),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: backgroundLight,
-            border: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: primaryColor, width: 2)),
-            errorBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: errorColor)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        Text(
+          label, 
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: isTablet ? 16 : 14,
+          )
+        ),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
+        SizedBox(
+          height: maxLines > 1 ? null : fieldHeight,
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: bodyLargeTextStyle.copyWith(
+              fontSize: isTablet ? 18 : 16,
+            ),
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: bodyMediumTextStyle.copyWith(
+                color: textTertiaryColor,
+                fontSize: isTablet ? 16 : 14,
+              ),
+              prefixIcon: Icon(
+                prefixIcon, 
+                color: textTertiaryColor,
+                size: isTablet ? 24 : 20,
+              ),
+              suffixIcon: suffixIcon,
+              filled: true,
+              fillColor: backgroundLight,
+              border: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
+              enabledBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
+              focusedBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: primaryColor, width: 2)),
+              errorBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: errorColor)),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? AppSpacing.lg : AppSpacing.md, 
+                vertical: isTablet ? AppSpacing.lg : AppSpacing.md,
+              ),
+            ),
           ),
         ),
       ],
@@ -733,11 +884,20 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildGenderSelector() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Jenis Kelamin', style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Jenis Kelamin', 
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: isTablet ? 16 : 14,
+          )
+        ),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
         Row(
           children: _genderOptions.map((gender) {
             bool isSelected = _selectedGender == gender;
@@ -747,8 +907,9 @@ class _SignupScreenState extends State<SignupScreen>
                 child: Container(
                   margin: EdgeInsets.only(
                       right: gender != _genderOptions.last ? AppSpacing.sm : 0),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTablet ? AppSpacing.lg : AppSpacing.md,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? primaryColor.withOpacity(0.1)
@@ -766,6 +927,7 @@ class _SignupScreenState extends State<SignupScreen>
                       color: isSelected ? primaryColor : textSecondaryColor,
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: isTablet ? 16 : 14,
                     ),
                   ),
                 ),
@@ -778,11 +940,20 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildDatePicker() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tanggal Lahir', style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Tanggal Lahir', 
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: isTablet ? 16 : 14,
+          )
+        ),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
         GestureDetector(
           onTap: () async {
             final date = await showDatePicker(
@@ -796,8 +967,10 @@ class _SignupScreenState extends State<SignupScreen>
             }
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.md),
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? AppSpacing.lg : AppSpacing.md, 
+              vertical: isTablet ? AppSpacing.lg : AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: backgroundLight,
               borderRadius: mediumRadius,
@@ -805,8 +978,12 @@ class _SignupScreenState extends State<SignupScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_outlined, color: textTertiaryColor),
-                const SizedBox(width: AppSpacing.md),
+                Icon(
+                  Icons.calendar_today_outlined, 
+                  color: textTertiaryColor,
+                  size: isTablet ? 24 : 20,
+                ),
+                SizedBox(width: isTablet ? AppSpacing.lg : AppSpacing.md),
                 Text(
                   _selectedDate != null
                       ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
@@ -815,10 +992,15 @@ class _SignupScreenState extends State<SignupScreen>
                     color: _selectedDate != null
                         ? textPrimaryColor
                         : textTertiaryColor,
+                    fontSize: isTablet ? 16 : 14,
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.arrow_drop_down, color: textTertiaryColor),
+                Icon(
+                  Icons.arrow_drop_down, 
+                  color: textTertiaryColor,
+                  size: isTablet ? 28 : 24,
+                ),
               ],
             ),
           ),
@@ -828,21 +1010,32 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildBloodTypeSelector() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Golongan Darah', style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Golongan Darah', 
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: isTablet ? 16 : 14,
+          )
+        ),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
         Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
+          spacing: isTablet ? AppSpacing.md : AppSpacing.sm,
+          runSpacing: isTablet ? AppSpacing.md : AppSpacing.sm,
           children: _bloodTypes.map((bloodType) {
             bool isSelected = _selectedBloodType == bloodType;
             return GestureDetector(
               onTap: () => setState(() => _selectedBloodType = bloodType),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? AppSpacing.lg : AppSpacing.md, 
+                  vertical: isTablet ? AppSpacing.md : AppSpacing.sm,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? primaryColor.withOpacity(0.1)
@@ -859,6 +1052,7 @@ class _SignupScreenState extends State<SignupScreen>
                     color: isSelected ? primaryColor : textSecondaryColor,
                     fontWeight:
                         isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: isTablet ? 16 : 14,
                   ),
                 ),
               ),
@@ -877,8 +1071,11 @@ class _SignupScreenState extends State<SignupScreen>
     required List<String> selectedItems,
     required Function(List<String>) onSelectionChanged,
   }) {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(isTablet ? AppSpacing.xl : AppSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: mediumRadius,
@@ -890,32 +1087,45 @@ class _SignupScreenState extends State<SignupScreen>
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: isTablet ? 50 : 40,
+                height: isTablet ? 50 : 40,
                 decoration: BoxDecoration(
                   color: primaryColor.withOpacity(0.1),
                   borderRadius: smallRadius,
                 ),
-                child: Icon(icon, color: primaryColor, size: 20),
+                child: Icon(
+                  icon, 
+                  color: primaryColor, 
+                  size: isTablet ? 26 : 20,
+                ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: isTablet ? AppSpacing.lg : AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: bodyLargeTextStyle.copyWith(
-                            fontWeight: FontWeight.w600)),
-                    Text(subtitle, style: bodySmallTextStyle),
+                    Text(
+                      title,
+                      style: bodyLargeTextStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: isTablet ? 18 : 16,
+                      )
+                    ),
+                    Text(
+                      subtitle, 
+                      style: bodySmallTextStyle.copyWith(
+                        fontSize: isTablet ? 14 : 12,
+                      )
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
           Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: isTablet ? AppSpacing.md : AppSpacing.sm,
+            runSpacing: isTablet ? AppSpacing.md : AppSpacing.sm,
             children: options.map((option) {
               bool isSelected = selectedItems.contains(option);
               bool isNoneOption =
@@ -937,8 +1147,10 @@ class _SignupScreenState extends State<SignupScreen>
                   onSelectionChanged(newSelection);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? AppSpacing.lg : AppSpacing.md, 
+                    vertical: isTablet ? AppSpacing.md : AppSpacing.sm,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? (isNoneOption
@@ -961,6 +1173,7 @@ class _SignupScreenState extends State<SignupScreen>
                           : textSecondaryColor,
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: isTablet ? 14 : 12,
                     ),
                   ),
                 ),
@@ -971,23 +1184,27 @@ class _SignupScreenState extends State<SignupScreen>
               selectedItems.any(
                   (item) => !item.contains('Tidak ada') && !item.contains('tidak')))
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
+              padding: EdgeInsets.only(top: isTablet ? AppSpacing.lg : AppSpacing.md),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                padding: EdgeInsets.all(isTablet ? AppSpacing.md : AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: warningColor.withOpacity(0.1),
                   borderRadius: smallRadius,
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: warningColor, size: 16),
-                    const SizedBox(width: AppSpacing.xs),
+                    Icon(
+                      Icons.info, 
+                      color: warningColor, 
+                      size: isTablet ? 20 : 16,
+                    ),
+                    SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         'Terpilih: ${selectedItems.where((item) => !item.contains('Tidak ada') && !item.contains('tidak')).length} item',
                         style: bodySmallTextStyle.copyWith(
                           color: warningColor,
-                          fontSize: 11,
+                          fontSize: isTablet ? 13 : 11,
                         ),
                       ),
                     ),
@@ -1004,30 +1221,46 @@ class _SignupScreenState extends State<SignupScreen>
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final screenSize = MediaQuery.of(context).size;
+        final isTablet = screenSize.width > 600;
+        final horizontalPadding = isTablet ? AppSpacing.xxl : AppSpacing.lg;
+        final buttonHeight = isTablet ? 64.0 : 56.0;
 
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: AppSpacing.lg,
+          ),
           child: Row(
             children: [
               if (_currentStep > 0)
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: isLoading ? null : _previousStep,
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: mediumRadius),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
+                  child: SizedBox(
+                    height: buttonHeight,
+                    child: OutlinedButton(
+                      onPressed: isLoading ? null : _previousStep,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: borderColor),
+                        shape: RoundedRectangleBorder(borderRadius: mediumRadius),
+                        padding: EdgeInsets.symmetric(
+                          vertical: isTablet ? AppSpacing.lg : 18,
+                        ),
+                      ),
+                      child: Text(
+                        'Sebelumnya',
+                        style: buttonMediumTextStyle.copyWith(
+                          color: textSecondaryColor,
+                          fontSize: isTablet ? 18 : 16,
+                        )
+                      ),
                     ),
-                    child: Text('Sebelumnya',
-                        style:
-                            buttonMediumTextStyle.copyWith(color: textSecondaryColor)),
                   ),
                 ),
-              if (_currentStep > 0) const SizedBox(width: AppSpacing.md),
+              if (_currentStep > 0) SizedBox(width: isTablet ? AppSpacing.lg : AppSpacing.md),
               Expanded(
                 flex: _currentStep == 0 ? 1 : 1,
                 child: Container(
-                  height: 56,
+                  height: buttonHeight,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: primaryGradient),
                     borderRadius: mediumRadius,
@@ -1049,14 +1282,18 @@ class _SignupScreenState extends State<SignupScreen>
                     ),
                     child: isLoading
                         ?  SizedBox(
-                            width: 24,
-                            height: 24,
+                            width: isTablet ? 28 : 24,
+                            height: isTablet ? 28 : 24,
                             child: CircularProgressIndicator(
-                                color: whiteColor, strokeWidth: 2),
+                              color: whiteColor, 
+                              strokeWidth: isTablet ? 3 : 2,
+                            ),
                           )
                         : Text(
                             _currentStep == 3 ? 'Daftar' : 'Selanjutnya',
-                            style: buttonLargeTextStyle,
+                            style: buttonLargeTextStyle.copyWith(
+                              fontSize: isTablet ? 20 : 18,
+                            ),
                           ),
                   ),
                 ),

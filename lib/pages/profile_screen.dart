@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// --- IMPORTS BARU ---
-import 'package:rescuein/bloc/auth/auth_repository.dart'; // Diperlukan untuk menyediakan repository ke BLoC
+import 'package:rescuein/bloc/auth/auth_repository.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
-import 'package:rescuein/pages/medical_history_screen.dart'; // Halaman riwayat medis
-
-// --- IMPORTS LAMA ---
+import 'package:rescuein/pages/medical_history_screen.dart';
 import 'login_screen.dart';
 import '../theme/theme.dart';
 
-// Bagian 1: Widget utama yang menyediakan BLoC
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -21,15 +16,13 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => ProfileBloc(
-        // Mengambil AuthRepository dari context yang lebih tinggi (asumsi sudah disediakan di main.dart atau di atasnya)
         authRepository: context.read<AuthRepository>(),
-      )..add(FetchProfileData()), // Langsung memanggil event untuk mengambil data
-      child: const ProfileView(), // Widget yang akan menampilkan UI
+      )..add(FetchProfileData()),
+      child: const ProfileView(),
     );
   }
 }
 
-// Bagian 2: Widget View yang berisi UI dan state lokal (animasi, dll.)
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
 
@@ -76,19 +69,31 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
   }
 
   void _showLogoutDialog() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isLargeScreen = screenWidth > 600;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: cardColor,
           shape: RoundedRectangleBorder(borderRadius: largeRadius),
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isLargeScreen ? screenWidth * 0.3 : 40.0,
+            vertical: 24.0,
+          ),
           title: Text(
             'Konfirmasi Logout',
-            style: headingSmallTextStyle,
+            style: headingSmallTextStyle.copyWith(
+              fontSize: isLargeScreen ? 22 : 18,
+            ),
           ),
           content: Text(
             'Apakah Anda yakin ingin keluar dari aplikasi?',
-            style: bodyMediumTextStyle.copyWith(color: textSecondaryColor),
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: isLargeScreen ? 16 : 14,
+            ),
           ),
           actions: [
             TextButton(
@@ -98,6 +103,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                 style: bodyMediumTextStyle.copyWith(
                   color: textSecondaryColor,
                   fontWeight: FontWeight.w600,
+                  fontSize: isLargeScreen ? 16 : 14,
                 ),
               ),
             ),
@@ -109,10 +115,16 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
               style: ElevatedButton.styleFrom(
                 backgroundColor: errorColor,
                 shape: RoundedRectangleBorder(borderRadius: smallRadius),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isLargeScreen ? 24 : 16,
+                  vertical: isLargeScreen ? 16 : 12,
+                ),
               ),
               child: Text(
                 'Logout',
-                style: buttonMediumTextStyle,
+                style: buttonMediumTextStyle.copyWith(
+                  fontSize: isLargeScreen ? 16 : 14,
+                ),
               ),
             ),
           ],
@@ -136,41 +148,41 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final bool isLargeScreen = screenWidth > 600;
+
+    final double horizontalPadding = screenWidth * 0.05;
+    final double verticalPadding = isLargeScreen ? 32.0 : 20.0;
+    final double spacing = isLargeScreen ? 28.0 : 24.0;
+
     return Scaffold(
       backgroundColor: surfaceColor,
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(isLargeScreen),
       body: SafeArea(
-        // Menggunakan BlocBuilder untuk merender UI berdasarkan state dari ProfileBloc
         child: BlocBuilder<ProfileBloc, ProfileState>(
           builder: (context, state) {
-            // State ketika data sedang diambil
             if (state is ProfileLoading || state is ProfileInitial) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // State ketika data berhasil didapatkan
             if (state is ProfileLoaded) {
               return FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                      vertical: verticalPadding,
+                    ),
                     child: Column(
                       children: [
-                        // Profile Header, kini dengan data dinamis
-                        _buildProfileHeader(state),
-                        
-                        const SizedBox(height: AppSpacing.xl),
-                        
-                        // Menu Items, kini dengan navigasi
-                        _buildMenuSection(state),
-                        
-                        const SizedBox(height: AppSpacing.xl),
-                        
-                        // Logout Button
-                        _buildLogoutButton(),
-                        
+                        _buildProfileHeader(state, screenWidth, isLargeScreen),
+                        SizedBox(height: spacing),
+                        _buildMenuSection(state, isLargeScreen),
+                        SizedBox(height: spacing),
+                        _buildLogoutButton(isLargeScreen),
                         const SizedBox(height: AppSpacing.lg),
                       ],
                     ),
@@ -179,11 +191,10 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
               );
             }
 
-            // State ketika terjadi error
             if (state is ProfileFailure) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: EdgeInsets.all(horizontalPadding),
                   child: Text(
                     'Gagal memuat data profil:\n${state.message}',
                     textAlign: TextAlign.center,
@@ -192,7 +203,6 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
               );
             }
 
-            // Fallback jika ada state yang tidak terduga
             return const Center(child: Text('Terjadi kesalahan.'));
           },
         ),
@@ -200,13 +210,13 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(bool isLargeScreen) {
     return AppBar(
       title: Text(
         'Profil Saya',
         style: GoogleFonts.inter(
           color: whiteColor,
-          fontSize: 20,
+          fontSize: isLargeScreen ? 24 : 20,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -228,18 +238,19 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       actions: [
         IconButton(
           icon: Icon(Icons.settings_outlined, color: whiteColor),
-          onPressed: () {
-            // Navigasi ke halaman settings
-          },
+          onPressed: () {},
         ),
       ],
     );
   }
 
-  // MODIFIKASI: Menerima state ProfileLoaded untuk data dinamis
-  Widget _buildProfileHeader(ProfileLoaded state) {
+  Widget _buildProfileHeader(ProfileLoaded state, double screenWidth, bool isLargeScreen) {
+    final double avatarSize = screenWidth * (isLargeScreen ? 0.20 : 0.25);
+    final double cameraIconSize = avatarSize * 0.32;
+    final double cameraIconContainerSize = avatarSize * 0.16;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(isLargeScreen ? 32.0 : 20.0),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: largeRadius,
@@ -247,12 +258,11 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       ),
       child: Column(
         children: [
-          // Widget Profile Picture (tidak berubah)
           Stack(
             children: [
               Container(
-                width: 100,
-                height: 100,
+                width: avatarSize,
+                height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -264,7 +274,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                 ),
                 child: Icon(
                   Icons.person,
-                  size: 50,
+                  size: avatarSize * 0.5,
                   color: whiteColor,
                 ),
               ),
@@ -272,8 +282,8 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: cameraIconSize,
+                  height: cameraIconSize,
                   decoration: BoxDecoration(
                     color: primaryColor,
                     shape: BoxShape.circle,
@@ -281,34 +291,30 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                   ),
                   child: Icon(
                     Icons.camera_alt,
-                    size: 16,
+                    size: cameraIconContainerSize,
                     color: whiteColor,
                   ),
                 ),
               ),
             ],
           ),
-          
-          const SizedBox(height: AppSpacing.md),
-          
-          // ---- DATA DINAMIS ----
-          // Menampilkan nama dari state.user
+          SizedBox(height: isLargeScreen ? AppSpacing.lg : AppSpacing.md),
           Text(
             state.user.nama,
-            style: headingMediumTextStyle,
+            style: headingMediumTextStyle.copyWith(
+              fontSize: isLargeScreen ? 28 : 22,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xs),
-          // Menampilkan email dari state.user
           Text(
             state.user.email,
             style: bodyMediumTextStyle.copyWith(
               color: textSecondaryColor,
+              fontSize: isLargeScreen ? 16 : 14,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          
-          // Status Badge (tidak berubah)
+          SizedBox(height: isLargeScreen ? AppSpacing.md : AppSpacing.sm),
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -345,8 +351,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     );
   }
 
-  // MODIFIKASI: Menerima state ProfileLoaded untuk navigasi
-  Widget _buildMenuSection(ProfileLoaded state) {
+  Widget _buildMenuSection(ProfileLoaded state, bool isLargeScreen) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -359,17 +364,15 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
             icon: Icons.person_outline,
             title: 'Edit Profil',
             subtitle: 'Ubah informasi pribadi Anda',
-            onTap: () {
-              // TODO: Implementasi navigasi ke halaman edit profil
-            },
+            onTap: () {},
+            isLargeScreen: isLargeScreen,
           ),
-          _buildMenuDivider(),
+          _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
             icon: Icons.medical_information_outlined,
             title: 'Riwayat Medis',
             subtitle: 'Lihat riwayat kesehatan Anda',
             onTap: () {
-              // --- NAVIGASI KE HALAMAN RIWAYAT MEDIS ---
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -379,34 +382,39 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
                 ),
               );
             },
+            isLargeScreen: isLargeScreen,
           ),
-          _buildMenuDivider(),
+          _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
             icon: Icons.notifications_outlined,
             title: 'Notifikasi',
             subtitle: 'Atur pengingat dan notifikasi',
             onTap: () {},
+            isLargeScreen: isLargeScreen,
           ),
-          _buildMenuDivider(),
+          _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
             icon: Icons.security_outlined,
             title: 'Keamanan',
             subtitle: 'Password dan keamanan akun',
             onTap: () {},
+            isLargeScreen: isLargeScreen,
           ),
-          _buildMenuDivider(),
+          _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
             icon: Icons.help_outline,
             title: 'Bantuan & FAQ',
             subtitle: 'Pusat bantuan dan dukungan',
             onTap: () {},
+            isLargeScreen: isLargeScreen,
           ),
-          _buildMenuDivider(),
+          _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
             icon: Icons.info_outline,
             title: 'Tentang Aplikasi',
             subtitle: 'Informasi aplikasi dan versi',
             onTap: () {},
+            isLargeScreen: isLargeScreen,
           ),
         ],
       ),
@@ -418,47 +426,62 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required bool isLargeScreen,
   }) {
+    final double iconContainerSize = isLargeScreen ? 50 : 44;
+    final double iconSize = isLargeScreen ? 26 : 22;
+
     return ListTile(
       leading: Container(
-        width: 44,
-        height: 44,
+        width: iconContainerSize,
+        height: iconContainerSize,
         decoration: BoxDecoration(
           color: primaryColor.withOpacity(0.1),
           borderRadius: smallRadius,
         ),
-        child: Icon(icon, color: primaryColor, size: 22),
+        child: Icon(icon, color: primaryColor, size: iconSize),
       ),
-      title: Text(title, style: bodyLargeTextStyle),
+      title: Text(
+        title,
+        style: bodyLargeTextStyle.copyWith(
+          fontSize: isLargeScreen ? 18 : 16,
+        ),
+      ),
       subtitle: Text(
         subtitle,
-        style: bodySmallTextStyle.copyWith(height: 1.3),
+        style: bodySmallTextStyle.copyWith(
+          height: 1.3,
+          fontSize: isLargeScreen ? 14 : 12,
+        ),
       ),
       trailing: Icon(
         Icons.chevron_right,
         color: textTertiaryColor,
       ),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isLargeScreen ? 24 : AppSpacing.lg,
+        vertical: isLargeScreen ? 12 : AppSpacing.sm,
       ),
     );
   }
 
-  Widget _buildMenuDivider() {
+  Widget _buildMenuDivider(bool isLargeScreen) {
+    final double iconContainerSize = isLargeScreen ? 50 : 44;
+    final double horizontalPadding = isLargeScreen ? 24 : AppSpacing.lg;
+    
     return Divider(
       height: 1,
       color: borderColor,
-      indent: AppSpacing.xxl + AppSpacing.md,
-      endIndent: AppSpacing.lg,
+      indent: iconContainerSize + horizontalPadding + 12,
+      endIndent: horizontalPadding,
     );
   }
 
-  Widget _buildLogoutButton() {
+  Widget _buildLogoutButton(bool isLargeScreen) {
     return Container(
       width: double.infinity,
-      height: 56,
+      height: isLargeScreen ? 64 : 56,
       decoration: BoxDecoration(
         color: errorColor.withOpacity(0.1),
         borderRadius: mediumRadius,
@@ -473,10 +496,13 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
             borderRadius: mediumRadius,
           ),
         ),
-        icon: Icon(Icons.logout, color: errorColor),
+        icon: Icon(Icons.logout, color: errorColor, size: isLargeScreen ? 28 : 24),
         label: Text(
           'Logout',
-          style: buttonLargeTextStyle.copyWith(color: errorColor),
+          style: buttonLargeTextStyle.copyWith(
+            color: errorColor,
+            fontSize: isLargeScreen ? 18 : 16,
+          ),
         ),
       ),
     );

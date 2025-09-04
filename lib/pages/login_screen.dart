@@ -12,7 +12,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -34,12 +35,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -55,16 +57,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
-            AuthLoginRequested(
-              email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
-            ),
-          );
+        AuthLoginRequested(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    final isTablet = screenWidth > 600;
+    final isSmallScreen = screenHeight < 700;
+
+    final logoSize = isTablet
+        ? 180.0
+        : (screenWidth * 0.35).clamp(120.0, 160.0);
+    final horizontalPadding = isTablet ? screenWidth * 0.25 : AppSpacing.lg;
+    final formMaxWidth = isTablet ? 500.0 : double.infinity;
+
     return Scaffold(
       backgroundColor: surfaceColor,
       body: BlocListener<AuthBloc, AuthState>(
@@ -84,30 +98,51 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           }
         },
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.xxl),
-                      _buildHeader(),
-                      const SizedBox(height: AppSpacing.xxl),
-                      _buildLoginForm(),
-                      const SizedBox(height: AppSpacing.lg),
-                      _buildLoginButton(),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildForgotPassword(),
-                      const SizedBox(height: AppSpacing.xl),
-                      _buildDivider(),
-                      const SizedBox(height: AppSpacing.lg),
-                      _buildRegisterLink(),
-                    ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: formMaxWidth),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: isSmallScreen ? AppSpacing.md : AppSpacing.lg,
+                ),
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // SizedBox(
+                          //   height: isSmallScreen
+                          //       ? AppSpacing.lg
+                          //       : AppSpacing.xxl,
+                          // ),
+                          _buildHeader(logoSize, isTablet),
+                          SizedBox(
+                            height: isSmallScreen
+                                ? AppSpacing.lg
+                                : AppSpacing.xxl,
+                          ),
+                          _buildLoginForm(screenWidth),
+                          const SizedBox(height: AppSpacing.lg),
+                          _buildLoginButton(),
+                          // const SizedBox(height: AppSpacing.md),
+                          // _buildForgotPassword(),
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildDivider(),
+                          const SizedBox(height: AppSpacing.lg),
+                          _buildRegisterLink(),
+                          // SizedBox(
+                          //   height: isSmallScreen
+                          //       ? AppSpacing.md
+                          //       : AppSpacing.lg,
+                          // ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -118,34 +153,53 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(double logoSize, bool isTablet) {
+    final titleFontSize = isTablet ? 35.0 : 28.0;
+    final subtitleFontSize = isTablet ? 18.0 : 16.0;
+
     return Column(
       children: [
         Container(
-          width: 150,
-          height: 150,
+          width: logoSize,
+          height: logoSize,
           decoration: BoxDecoration(
             color: backgroundLight,
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(isTablet ? 35 : 25),
             boxShadow: [cardShadow],
           ),
           child: Image.asset('assets/logo.png', fit: BoxFit.contain),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text('Selamat Datang Kembali', style: headingLargeTextStyle),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: isTablet ? AppSpacing.lg : AppSpacing.md),
         Text(
-          'Masuk untuk mengakses fitur pertolongan pertama\ndan konsultasi kesehatan',
-          style: bodyMediumTextStyle.copyWith(color: textSecondaryColor, height: 1.5),
+          'Selamat Datang ',
+          style: headingLargeTextStyle.copyWith(fontSize: titleFontSize),
           textAlign: TextAlign.center,
+        ),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? AppSpacing.xxl : AppSpacing.lg,
+          ),
+          child: Text(
+            'Masuk untuk mengakses fitur pertolongan pertama\ndan konsultasi kesehatan',
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              height: 1.5,
+              fontSize: subtitleFontSize,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildLoginForm(double screenWidth) {
+    final fieldSpacing = screenWidth > 600 ? AppSpacing.lg : AppSpacing.md;
+    final formPadding = screenWidth > 600 ? AppSpacing.xxl : AppSpacing.lg;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(formPadding),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: largeRadius,
@@ -166,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: fieldSpacing),
           _buildTextField(
             controller: _passwordController,
             label: 'Password',
@@ -204,57 +258,86 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final fieldHeight = isTablet ? 60.0 : 56.0;
+    final fontSize = isTablet ? 18.0 : 16.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w600, color: textPrimaryColor),
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: FontWeight.w600,
+            color: textPrimaryColor,
+            fontSize: fontSize,
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        TextFormField(
-          controller: controller,
-          obscureText: isPassword && !_isPasswordVisible,
-          keyboardType: keyboardType,
-          style: bodyLargeTextStyle,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: bodyMediumTextStyle.copyWith(color: textTertiaryColor),
-            prefixIcon: Icon(prefixIcon, color: textTertiaryColor),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: backgroundLight,
-            border: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: borderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: mediumRadius, borderSide: BorderSide(color: primaryColor, width: 2)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        SizedBox(height: isTablet ? AppSpacing.md : AppSpacing.sm),
+        SizedBox(
+          height: fieldHeight,
+          child: TextFormField(
+            controller: controller,
+            obscureText: isPassword && !_isPasswordVisible,
+            keyboardType: keyboardType,
+            style: bodyLargeTextStyle.copyWith(fontSize: fontSize),
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: bodyMediumTextStyle.copyWith(
+                color: textTertiaryColor,
+                fontSize: fontSize * 0.9,
+              ),
+              prefixIcon: Icon(prefixIcon, color: textTertiaryColor),
+              suffixIcon: suffixIcon,
+              filled: true,
+              fillColor: backgroundLight,
+              border: OutlineInputBorder(
+                borderRadius: mediumRadius,
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: mediumRadius,
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: mediumRadius,
+                borderSide: BorderSide(color: primaryColor, width: 2),
+              ),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: isTablet ? AppSpacing.lg : AppSpacing.md,
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-   Widget _buildLoginButton() {
+  Widget _buildLoginButton() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        // --- PERBAIKAN DI SINI ---
-        // Loading akan aktif hanya jika state adalah AuthLoading.
-        // Jika state adalah AuthFailure atau lainnya, loading akan berhenti.
         final isLoading = state is AuthLoading;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isTablet = screenWidth > 600;
+        final buttonHeight = isTablet ? 64.0 : 56.0;
+        final fontSize = isTablet ? 20.0 : 18.0;
 
         return Container(
-          height: 56,
+          height: buttonHeight,
           decoration: BoxDecoration(
-            // Jika sedang loading, buat gradien menjadi abu-abu. Jika tidak, gunakan gradien utama.
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: isLoading ? [Colors.grey, Colors.grey.shade400] : primaryGradient,
+              colors: isLoading
+                  ? [Colors.grey, Colors.grey.shade400]
+                  : primaryGradient,
             ),
             borderRadius: mediumRadius,
             boxShadow: [
-              if (!isLoading) // Hanya tampilkan bayangan jika tidak sedang loading
+              if (!isLoading)
                 BoxShadow(
                   color: primaryColor.withOpacity(0.3),
                   blurRadius: 12,
@@ -271,11 +354,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             ),
             child: isLoading
                 ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(color: whiteColor, strokeWidth: 2),
+                    width: isTablet ? 28 : 24,
+                    height: isTablet ? 28 : 24,
+                    child: CircularProgressIndicator(
+                      color: whiteColor,
+                      strokeWidth: isTablet ? 3 : 2,
+                    ),
                   )
-                : Text('Masuk', style: buttonLargeTextStyle),
+                : Text(
+                    'Masuk',
+                    style: buttonLargeTextStyle.copyWith(fontSize: fontSize),
+                  ),
           ),
         );
       },
@@ -283,27 +372,46 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildForgotPassword() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final fontSize = isTablet ? 16.0 : 14.0;
+
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
-        onPressed: () {
-          // Handle forgot password
-        },
+        onPressed: () {},
         child: Text(
           'Lupa Password?',
-          style: bodyMediumTextStyle.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
+          style: bodyMediumTextStyle.copyWith(
+            color: primaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: fontSize,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDivider() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final fontSize = isTablet ? 14.0 : 12.0;
+
     return Row(
       children: [
         Expanded(child: Divider(color: borderColor, thickness: 1)),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text('ATAU', style: bodySmallTextStyle.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1)),
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? AppSpacing.lg : AppSpacing.md,
+          ),
+          child: Text(
+            'ATAU',
+            style: bodySmallTextStyle.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
+              fontSize: fontSize,
+            ),
+          ),
         ),
         Expanded(child: Divider(color: borderColor, thickness: 1)),
       ],
@@ -311,8 +419,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildRegisterLink() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final fontSize = isTablet ? 16.0 : 14.0;
+    final padding = isTablet ? AppSpacing.lg : AppSpacing.md;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: secondaryColor.withOpacity(0.1),
         borderRadius: mediumRadius,
@@ -320,7 +433,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Belum punya akun? ', style: bodyMediumTextStyle.copyWith(color: textSecondaryColor)),
+          Text(
+            'Belum punya akun? ',
+            style: bodyMediumTextStyle.copyWith(
+              color: textSecondaryColor,
+              fontSize: fontSize,
+            ),
+          ),
           GestureDetector(
             onTap: () {
               Navigator.of(context).push(
@@ -329,7 +448,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             },
             child: Text(
               'Daftar Sekarang',
-              style: bodyMediumTextStyle.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
+              style: bodyMediumTextStyle.copyWith(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: fontSize,
+              ),
             ),
           ),
         ],
