@@ -6,6 +6,7 @@ import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
 import 'package:rescuein/pages/medical_history_screen.dart';
+import 'package:rescuein/pages/emergency_qr_screen.dart';
 import 'login_screen.dart';
 import '../theme/theme.dart';
 
@@ -42,7 +43,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       duration: AppDurations.medium,
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -50,7 +51,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       parent: _animationController,
       curve: Curves.easeOut,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.2),
       end: Offset.zero,
@@ -58,7 +59,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -136,7 +137,8 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
   void _handleLogout() {
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -145,6 +147,50 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       (Route<dynamic> route) => false,
     );
   }
+
+  // Di dalam class _ProfileViewState di file lib/pages/profile_screen.dart
+
+void _showEmergencyQrCode(BuildContext context) async {
+  // Tampilkan dialog loading
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    final authRepo = context.read<AuthRepository>();
+    final userId = authRepo.currentUser!.uid;
+
+    // Langkah 1: Dapatkan emergencyId dari Firestore (tetap sama)
+    final emergencyId = await authRepo.getOrCreateEmergencyId(userId);
+
+    // Langkah 2: Bentuk URL menggunakan format Vercel (INI BAGIAN YANG DIUBAH)
+    // URL dasar dari Vercel Anda
+    const String vercelUrl = 'https://rescuein-backend.vercel.app';
+    // Gabungkan dengan path API dan query parameter '?id='
+    final String url = '$vercelUrl/api/emergency?id=$emergencyId';
+
+    // Pastikan widget masih ada sebelum melanjutkan
+    if (mounted) {
+      Navigator.of(context).pop(); // Tutup loading dialog
+
+      // Navigasi ke halaman QR dengan URL yang baru
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => EmergencyQrScreen(emergencyUrl: url),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      Navigator.of(context).pop(); // Tutup loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +290,8 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildProfileHeader(ProfileLoaded state, double screenWidth, bool isLargeScreen) {
+  Widget _buildProfileHeader(
+      ProfileLoaded state, double screenWidth, bool isLargeScreen) {
     final double avatarSize = screenWidth * (isLargeScreen ? 0.20 : 0.25);
     final double cameraIconSize = avatarSize * 0.32;
     final double cameraIconContainerSize = avatarSize * 0.16;
@@ -386,6 +433,16 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
           ),
           _buildMenuDivider(isLargeScreen),
           _buildMenuItem(
+            icon: Icons.qr_code_2,
+            title: 'Kode QR Darurat',
+            subtitle: 'Tampilkan kode QR darurat Anda',
+            onTap: () {
+              _showEmergencyQrCode(context);
+            },
+            isLargeScreen: isLargeScreen,
+          ),
+          _buildMenuDivider(isLargeScreen),
+          _buildMenuItem(
             icon: Icons.notifications_outlined,
             title: 'Notifikasi',
             subtitle: 'Atur pengingat dan notifikasi',
@@ -469,7 +526,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
   Widget _buildMenuDivider(bool isLargeScreen) {
     final double iconContainerSize = isLargeScreen ? 50 : 44;
     final double horizontalPadding = isLargeScreen ? 24 : AppSpacing.lg;
-    
+
     return Divider(
       height: 1,
       color: borderColor,
