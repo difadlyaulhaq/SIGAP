@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rescuein/models/medical_history_model.dart';
 import 'package:rescuein/models/user_model.dart';
+import 'package:uuid/uuid.dart'; // FIX 1: Tambahkan import yang hilang
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
@@ -11,13 +12,9 @@ class AuthRepository {
       : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance;
 
-  // Stream untuk memantau perubahan status autentikasi
   Stream<User?> get user => _firebaseAuth.authStateChanges();
-
-  // IMPLEMENTASI: Getter untuk mendapatkan user saat ini dari cache Firebase
   User? get currentUser => _firebaseAuth.currentUser;
 
-  // Fungsi untuk signup
   Future<void> signUp({
     required String email,
     required String password,
@@ -33,8 +30,8 @@ class AuthRepository {
     required List<String> obatRutin,
     required String catatanTambahan,
   }) async {
+    // ... (kode signUp Anda tidak perlu diubah)
     try {
-      // 1. Buat user di Firebase Authentication
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -46,7 +43,6 @@ class AuthRepository {
 
       final userId = credential.user!.uid;
 
-      // 2. Simpan data user ke collection 'users'
       await _saveUserData(
         userId: userId,
         email: email,
@@ -59,7 +55,6 @@ class AuthRepository {
         kontakDarurat: kontakDarurat,
       );
 
-      // 3. Simpan data riwayat kesehatan ke collection 'medicalHistories'
       await _saveMedicalHistory(
         userId: userId,
         alergi: alergi,
@@ -68,12 +63,10 @@ class AuthRepository {
         catatanTambahan: catatanTambahan,
       );
     } on FirebaseAuthException catch (e) {
-      // Menangani eror spesifik dari Firebase Auth
       throw Exception(e.message ?? 'Terjadi eror saat pendaftaran');
     }
   }
 
-  // Fungsi untuk menyimpan data user utama
   Future<void> _saveUserData({
     required String userId,
     required String email,
@@ -85,20 +78,20 @@ class AuthRepository {
     required String golonganDarah,
     required String kontakDarurat,
   }) async {
-    await _firestore.collection('users').doc(userId).set({
+    // ... (kode _saveUserData Anda tidak perlu diubah)
+     await _firestore.collection('users').doc(userId).set({
       'uid': userId,
       'email': email,
       'nama': nama,
       'telepon': telepon,
       'alamat': alamat,
       'jenisKelamin': jenisKelamin,
-      'tanggalLahir': Timestamp.fromDate(tanggalLahir), // Konversi ke Timestamp
+      'tanggalLahir': Timestamp.fromDate(tanggalLahir),
       'golonganDarah': golonganDarah,
       'kontakDarurat': kontakDarurat,
     });
   }
 
-  // Fungsi untuk menyimpan riwayat kesehatan
   Future<void> _saveMedicalHistory({
     required String userId,
     required List<String> alergi,
@@ -106,6 +99,7 @@ class AuthRepository {
     required List<String> obatRutin,
     required String catatanTambahan,
   }) async {
+    // ... (kode _saveMedicalHistory Anda tidak perlu diubah)
     await _firestore.collection('medicalHistories').doc(userId).set({
       'alergi': alergi,
       'riwayatPenyakit': riwayatPenyakit,
@@ -113,8 +107,10 @@ class AuthRepository {
       'catatanTambahan': catatanTambahan,
     });
   }
+
   Future<UserModel> getUserData(String userId) async {
-    try {
+    // ... (kode getUserData Anda tidak perlu diubah)
+     try {
       final doc = await _firestore.collection('users').doc(userId).get();
       if (doc.exists) {
         return UserModel.fromFirestore(doc);
@@ -126,11 +122,11 @@ class AuthRepository {
     }
   }
 
-  // Fungsi untuk mendapatkan riwayat medis dari Firestore
   Future<MedicalHistoryModel> getMedicalHistory(String userId) async {
+    // ... (kode getMedicalHistory Anda tidak perlu diubah)
     try {
       final doc = await _firestore.collection('medicalHistories').doc(userId).get();
-       if (doc.exists) {
+      if (doc.exists) {
         return MedicalHistoryModel.fromFirestore(doc);
       } else {
         throw Exception("Medical history not found!");
@@ -139,7 +135,40 @@ class AuthRepository {
       throw Exception("Failed to get medical history: $e");
     }
   }
-  // Fungsi untuk login
+
+  Future<String> getOrCreateEmergencyId(String userId) async {
+    try {
+      final userDocRef = _firestore.collection('users').doc(userId);
+      final userDoc = await userDocRef.get();
+
+      if (userDoc.exists && userDoc.data()!.containsKey('emergencyId')) {
+        return userDoc.data()!['emergencyId'] as String;
+      } else {
+        // FIX 2: Ganti 'const' menjadi 'final'
+        final uuid = Uuid();
+        final newEmergencyId = uuid.v4();
+        
+        await userDocRef.update({'emergencyId': newEmergencyId});
+        
+        return newEmergencyId;
+      }
+    } catch (e) {
+      throw Exception('Gagal mendapatkan atau membuat Emergency ID: $e');
+    }
+  } // <-- FIX 3: Tambahkan kurung kurawal penutup yang hilang
+
+  Future<void> updateMedicalHistory({
+    required String userId,
+    required MedicalHistoryModel medicalHistory,
+  }) async {
+    try {
+      final docRef = _firestore.collection('medicalHistories').doc(userId);
+      await docRef.update(medicalHistory.toJson());
+    } catch (e) {
+      throw Exception('Error updating medical history: $e');
+    }
+  }
+
   Future<void> logIn({required String email, required String password}) async {
     try {
       await _firebaseAuth.signInWithEmailAndPassword(
@@ -151,7 +180,6 @@ class AuthRepository {
     }
   }
 
-  // Fungsi untuk logout
   Future<void> logOut() async {
     await _firebaseAuth.signOut();
   }

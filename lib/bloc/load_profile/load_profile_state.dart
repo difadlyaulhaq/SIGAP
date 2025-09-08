@@ -20,3 +20,6 @@ class ProfileFailure extends ProfileState {
 
   ProfileFailure({required this.message});
 }
+class ProfileUpdateInProgress extends ProfileState {}
+
+class ProfileUpdateSuccess extends ProfileState {}
