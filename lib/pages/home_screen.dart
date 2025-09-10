@@ -310,7 +310,7 @@ class _HomePageContentState extends State<HomePageContent>
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: profileBloc,
-          child: const EmergencyContactScreen(),
+          child: const EmergencyScreen(),
         ),
       ),
     );

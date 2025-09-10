@@ -1,15 +1,18 @@
+// lib/models/hospital.dart
 import 'package:latlong2/latlong.dart';
+
+enum FacilityType { hospital, clinic, pharmacy, unknown }
 
 class Hospital {
   final String name;
   final LatLng location;
-  
-  // Dibuat tidak final dan nullable karena nilainya diisi setelah objek dibuat
+  final FacilityType type;
   double? distanceInKm;
 
   Hospital({
     required this.name,
     required this.location,
+    required this.type,
     this.distanceInKm,
   });
 }

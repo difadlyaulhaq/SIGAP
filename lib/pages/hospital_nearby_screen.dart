@@ -1,48 +1,36 @@
+// lib/pages/hospital_nearby_screen.dart
+
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-// --- PLACEHOLDER MODELS & THEME ---
-class HealthFacility {
-  final String name;
-  final String type;
-  final LatLng location;
-  double? distanceInKm;
+import '../models/hospital.dart';
 
-  HealthFacility({
-    required this.name,
-    required this.type,
-    required this.location,
-    this.distanceInKm,
-  });
-}
-
-const Color primaryColor = Colors.blue;
-const Color accentColor = Colors.cyan;
-const Color pharmacyColor = Colors.green;
+// --- STYLING ---
+const Color primaryColor = Color(0xFF4A90E2);
+const Color hospitalColor = Color(0xFFD0021B);
+const Color clinicColor = Color(0xFFF5A623);
+const Color pharmacyColor = Color(0xFF4CAF50);
 const Color whiteColor = Colors.white;
 const Color textPrimaryColor = Colors.black87;
 const Color textSecondaryColor = Colors.black54;
 const Color cardColor = Colors.white;
-const TextStyle heading5TextStyle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimaryColor);
 const TextStyle bodyMediumTextStyle = TextStyle(fontSize: 14, color: textPrimaryColor);
 const TextStyle bodySmallTextStyle = TextStyle(fontSize: 12, color: textPrimaryColor);
-const TextStyle modernWhiteTextStyle = TextStyle(fontSize: 16, color: Colors.white);
-final BoxShadow strongShadow = BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4));
-
-class RouteStep {
-  final String instruction;
-  final double distance;
-  final LatLng startLocation;
-  RouteStep({required this.instruction, required this.distance, required this.startLocation});
-}
-// --- END OF PLACEHOLDERS ---
-
+final BoxShadow strongShadow = BoxShadow(
+  color: Colors.black26,
+  blurRadius: 8,
+  offset: Offset(0, 4),
+);
+// --- END OF STYLING ---
 
 class HospitalNearbyPage extends StatefulWidget {
   const HospitalNearbyPage({super.key});
@@ -52,46 +40,151 @@ class HospitalNearbyPage extends StatefulWidget {
 }
 
 class _HospitalNearbyPageState extends State<HospitalNearbyPage>
-    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  final String _orsApiKey = dotenv.env['OPENROUTESERVICE_API_KEY'] ?? 'API_KEY_NOT_FOUND';
-  final MapController _mapController = MapController();
-  StreamSubscription<Position>? _positionStream;
+  MapboxMap? _mapboxMapController;
+
+  // Managers for POIs
+  PointAnnotationManager? _facilityManager; // all facilities markers
+  PolylineAnnotationManager? _polylineManager; // route polyline
+  PointAnnotationManager? _userMarkerManager; // user marker
+  PointAnnotationManager? _destinationManager; // destination marker
+
+  // Streams / cancelables
+  StreamSubscription<geo.Position>? _positionStream;
+  Cancelable? _facilityTapCancelable;
+
+  // Assets
+  Uint8List? _facilityIconBytes; // generic marker (fallback)
+  Uint8List? _userIconBytes;     // user marker icon
+  Uint8List? _destIconBytes;     // destination marker icon
 
   bool _isLoading = true;
   String _loadingMessage = "Memeriksa izin lokasi...";
-  Position? _currentPosition;
-  List<HealthFacility> _facilities = [];
-  HealthFacility? _selectedFacility;
+  geo.Position? _currentPosition;
+
+  List<Hospital> _allFacilities = [];
+  List<Hospital> _filteredFacilities = [];
+  Hospital? _selectedFacility;
+  FacilityType _activeFilter = FacilityType.unknown; // unknown = Semua
+
   final LatLng _defaultLocation = const LatLng(-7.7956, 110.3695); // Yogyakarta
 
-  bool _isNavigating = false;
-  List<LatLng> _routePoints = [];
-  List<RouteStep> _routeSteps = [];
-  int _currentStepIndex = 0;
-  String _totalRouteDistance = "";
-  String _totalRouteDuration = "";
-  double _distanceToNextStep = 0.0;
+  // Mapbox token (non-null, assert loaded in main)
+  String get _mapboxToken => dotenv.env['MAPBOX_ACCESS_TOKEN']!;
 
   @override
   void initState() {
     super.initState();
     _initializeScreen();
+    _loadMarkerAssets();
+  }
+
+  Future<void> _loadMarkerAssets() async {
+    // Load 3 optional icons; fall back to default if not found
+    Future<Uint8List?> load(String path) async {
+      try {
+        final ByteData bytes = await rootBundle.load(path);
+        return bytes.buffer.asUint8List();
+      } catch (_) {
+        if (kDebugMode) debugPrint('Asset not found: $path (using default icon)');
+        return null;
+      }
+    }
+
+    final facility = await load('assets/marker_icon (1).png');
+    final user = await load('');
+    final dest = await load('assets/destination_marker (3) (1).png');
+
+    if (!mounted) return;
+    setState(() {
+      _facilityIconBytes = facility;
+      _userIconBytes = user;
+      _destIconBytes = dest;
+    });
   }
 
   @override
   void dispose() {
-    // PERBAIKAN KRUSIAL: Membatalkan stream saat widget dihancurkan
-    // untuk menghentikan semua listener dan mencegah error setState.
     _positionStream?.cancel();
-    _mapController.dispose();
+    _facilityTapCancelable?.cancel();
+
+    // Clean up annotations
+    unawaited(_polylineManager?.deleteAll());
+    unawaited(_facilityManager?.deleteAll());
+    unawaited(_userMarkerManager?.deleteAll());
+    unawaited(_destinationManager?.deleteAll());
+
     super.dispose();
   }
 
+  // onMapCreated untuk MapWidget (mapbox_maps_flutter)
+  Future<void> _onMapCreated(MapboxMap controller) async {
+    _mapboxMapController = controller;
+
+    // NOTE: gestures are enabled by default in mapbox_maps_flutter.
+    // If you need to tweak gesture settings, ensure your sdk version supports the
+    // Gestures API; otherwise remove/update this block. To keep compatibility we
+    // omit calling a GestureSettings constructor here which may not exist on some
+    // versions of the package.
+
+    // Create managers
+    _facilityManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _polylineManager =
+        await _mapboxMapController!.annotations.createPolylineAnnotationManager();
+    _userMarkerManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _destinationManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
+
+    // Handle taps on facility markers
+    _facilityTapCancelable = _facilityManager!.tapEvents(
+      onTap: (annotation) {
+        final coords = annotation.geometry.coordinates;
+        final tapped = LatLng(coords[1]!.toDouble(), coords[0]!.toDouble());
+        final tappedFacility = _filteredFacilities.isEmpty
+            ? null
+            : _filteredFacilities.firstWhere(
+                (f) =>
+                    (f.location.latitude - tapped.latitude).abs() < 0.0001 &&
+                    (f.location.longitude - tapped.longitude).abs() < 0.0001,
+                orElse: () => _filteredFacilities.first,
+              );
+        if (tappedFacility != null) {
+          _onFacilitySelected(tappedFacility);
+        }
+      },
+    );
+
+    // If we already have data, render them
+    unawaited(_updateFacilityAnnotations());
+  }
+
+  void _onFacilitySelected(Hospital facility) async {
+    setState(() => _selectedFacility = facility);
+
+    // Fly to destination
+    await _mapboxMapController?.flyTo(
+      CameraOptions(
+        center: Point(coordinates: Position(facility.location.longitude, facility.location.latitude)),
+        zoom: 16.5,
+      ),
+      MapAnimationOptions(duration: 900, startDelay: 0),
+    );
+
+    // Add/Update destination marker explicitly
+    await _addOrUpdateDestinationMarker(
+      Point(coordinates: Position(facility.location.longitude, facility.location.latitude)),
+    );
+  }
+
   Future<void> _initializeScreen() async {
-    bool hasPermission = await _handleLocationPermission();
+    assert(dotenv.env['MAPBOX_ACCESS_TOKEN'] != null, 'MAPBOX_ACCESS_TOKEN must be set in .env');
+
+    final hasPermission = await _handleLocationPermission();
     if (!mounted) return;
 
     if (hasPermission) {
@@ -103,24 +196,28 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   }
 
   Future<bool> _handleLocationPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Layanan lokasi tidak aktif. Mohon aktifkan GPS.')));
+    final serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Layanan lokasi tidak aktif. Mohon aktifkan GPS.')),
+      );
       return false;
     }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (!mounted) return false;
-      if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Izin lokasi ditolak.')));
+    var permission = await geo.Geolocator.checkPermission();
+    if (permission == geo.LocationPermission.denied) {
+      permission = await geo.Geolocator.requestPermission();
+      if (permission == geo.LocationPermission.denied && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Izin lokasi ditolak.')));
         return false;
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Izin lokasi ditolak permanen, kami tidak bisa meminta izin.')));
+    if (permission == geo.LocationPermission.deniedForever && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Izin lokasi ditolak permanen, kami tidak bisa meminta izin.'),
+      ));
       return false;
     }
     return true;
@@ -130,168 +227,314 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     if (!mounted) return;
     setState(() => _loadingMessage = "Mendapatkan lokasi Anda...");
 
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update setiap 10 meter untuk efisiensi
+    const geo.LocationSettings locationSettings = geo.LocationSettings(
+      accuracy: geo.LocationAccuracy.bestForNavigation,
+      distanceFilter: 3,
     );
 
-    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen((Position position) async {
+    _positionStream = geo.Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((geo.Position position) async {
       if (!mounted) return;
-
-      final bool isFirstUpdate = _currentPosition == null;
+      final isFirstUpdate = _currentPosition == null;
       _currentPosition = position;
+
+      final bearing = (position.heading.isNaN) ? 0.0 : position.heading;
+
+      // Add/Update user marker
+      await _addOrUpdateUserMarker(
+        Point(coordinates: Position(position.longitude, position.latitude)),
+        bearing,
+      );
+
+      // camera follow with tilt & bearing for navigation feel
+      _mapboxMapController?.easeTo(
+        CameraOptions(
+          center: Point(coordinates: Position(position.longitude, position.latitude)),
+          zoom: 16.5,
+          pitch: 60.0,
+          bearing: bearing,
+        ),
+        MapAnimationOptions(duration: 800),
+      );
 
       if (isFirstUpdate) {
         setState(() => _loadingMessage = "Mencari fasilitas terdekat...");
-        _mapController.move(LatLng(position.latitude, position.longitude), 14.0);
         await _fetchAndProcessFacilities(LatLng(position.latitude, position.longitude));
       } else {
-        if (!mounted) return;
         _updateDistancesAndSort();
-        if (_isNavigating) {
-          _updateNavigationState(position);
-        }
-        setState(() {});
+        if (mounted) setState(() {});
       }
     });
+  }
+
+  Future<void> _addOrUpdateUserMarker(Point geometry, double bearing) async {
+    if (_userMarkerManager == null) return;
+
+    final opts = PointAnnotationOptions(
+      geometry: geometry,
+      iconSize: 1.6,
+      image: _userIconBytes ?? _facilityIconBytes,
+      iconRotate: bearing,
+    );
+
+    try {
+      // Use create + update for user marker; we don't keep a field reference
+      // because the manager keeps track of it. This avoids an unused-field lint.
+      final existing = await _userMarkerManager!.create(opts);
+      // We don't need to store `existing` in a field unless you need to update it later.
+    } catch (e) {
+      if (kDebugMode) debugPrint('User marker create/update error: $e');
+    }
+  }
+
+  Future<void> _addOrUpdateDestinationMarker(Point geometry) async {
+    if (_destinationManager == null) return;
+
+    final opts = PointAnnotationOptions(
+      geometry: geometry,
+      iconSize: 1.4,
+      image: _destIconBytes ?? _facilityIconBytes,
+    );
+
+    try {
+      // Keep a single destination marker
+      await _destinationManager!.deleteAll();
+      await _destinationManager!.create(opts);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Destination marker error: $e');
+    }
   }
 
   Future<void> _fetchAndProcessFacilities(LatLng location) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-
     await _fetchNearbyFacilities(location);
     if (!mounted) return;
-
     _updateDistancesAndSort();
+    _applyFilter(); // initial filter
     setState(() => _isLoading = false);
   }
 
   Future<void> _fetchNearbyFacilities(LatLng location) async {
-    // IMPLEMENTASI: Query diperbarui untuk mencari hospital, clinic, dan pharmacy
-    final query = """
-      [out:json];
-      (
-        node["amenity"~"hospital|clinic|pharmacy"](around:5000,${location.latitude},${location.longitude});
-        way["amenity"~"hospital|clinic|pharmacy"](around:5000,${location.latitude},${location.longitude});
-      );
-      out center;
-    """;
+    final query = '''
+[out:json][timeout:25];
+(
+  node["amenity"~"hospital|clinic|pharmacy|doctors"](around:5000,${location.latitude},${location.longitude});
+  way["amenity"~"hospital|clinic|pharmacy|doctors"](around:5000,${location.latitude},${location.longitude});
+  relation["amenity"~"hospital|clinic|pharmacy|doctors"](around:5000,${location.latitude},${location.longitude});
+);
+out center meta;
+''';
+
     try {
-      final response = await http.post(
-        Uri.parse('https://overpass-api.de/api/interpreter'),
-        body: {'data': query},
-      );
+      final response = await http
+          .post(
+            Uri.parse('https://overpass-api.de/api/interpreter'),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'data=$query',
+          )
+          .timeout(const Duration(seconds: 30));
+
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List elements = data['elements'];
-        _facilities = elements.map((e) {
-          String type = e['tags']?['amenity'] ?? 'unknown';
-          String name = e['tags']?['name'] ?? 'Fasilitas Tanpa Nama';
-          double lat = e['lat'] ?? e['center']['lat'];
-          double lon = e['lon'] ?? e['center']['lon'];
-          return HealthFacility(name: name, type: type, location: LatLng(lat, lon));
+        final List elements = data['elements'] as List? ?? [];
+
+        _allFacilities = elements.where((e) {
+          return (e['lat'] != null && e['lon'] != null) ||
+              (e['center'] != null &&
+                  e['center']['lat'] != null &&
+                  e['center']['lon'] != null);
+        }).map<Hospital>((e) {
+          final tags = (e['tags'] as Map?)?.cast<String, dynamic>() ?? {};
+          final String name = tags['name'] ?? tags['brand'] ?? tags['operator'] ?? 'Fasilitas Kesehatan';
+
+          final double lat = (e['lat'] ?? e['center']?['lat'])?.toDouble() ?? 0.0;
+          final double lon = (e['lon'] ?? e['center']?['lon'])?.toDouble() ?? 0.0;
+
+          final String amenity = (tags['amenity'] ?? 'unknown').toString();
+          final String healthcare = (tags['healthcare'] ?? '').toString();
+
+          return Hospital(
+            name: name,
+            location: LatLng(lat, lon),
+            type: _getFacilityType(amenity, healthcare),
+          );
         }).toList();
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal memuat data fasilitas kesehatan.')));
+      if (kDebugMode) debugPrint('Error fetching facilities: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data fasilitas kesehatan: $e'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      _allFacilities = [];
+    }
+  }
+
+  FacilityType _getFacilityType(String amenity, String healthcare) {
+    switch (amenity.toLowerCase()) {
+      case 'hospital':
+        return FacilityType.hospital;
+      case 'clinic':
+      case 'doctors':
+        return FacilityType.clinic;
+      case 'pharmacy':
+        return FacilityType.pharmacy;
+      default:
+        switch (healthcare.toLowerCase()) {
+          case 'hospital':
+            return FacilityType.hospital;
+          case 'clinic':
+          case 'doctor':
+            return FacilityType.clinic;
+          case 'pharmacy':
+            return FacilityType.pharmacy;
+          default:
+            return FacilityType.unknown;
+        }
     }
   }
 
   void _updateDistancesAndSort() {
     if (_currentPosition == null || !mounted) return;
 
-    for (var facility in _facilities) {
-      facility.distanceInKm = Geolocator.distanceBetween(
-            _currentPosition!.latitude, _currentPosition!.longitude,
-            facility.location.latitude, facility.location.longitude) / 1000;
+    for (final facility in _allFacilities) {
+      facility.distanceInKm = geo.Geolocator.distanceBetween(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+            facility.location.latitude,
+            facility.location.longitude,
+          ) /
+          1000.0;
     }
-    _facilities.sort((a, b) => a.distanceInKm!.compareTo(b.distanceInKm!));
-    if (_facilities.isNotEmpty && _selectedFacility == null) {
-      _selectedFacility = _facilities.first;
+    _allFacilities.sort((a, b) =>
+        (a.distanceInKm ?? double.infinity).compareTo(b.distanceInKm ?? double.infinity));
+  }
+
+  Future<void> _updateFacilityAnnotations() async {
+    if (_facilityManager == null) return;
+
+    await _facilityManager!.deleteAll();
+    if (_filteredFacilities.isEmpty) return;
+
+    final options = _filteredFacilities.map((facility) {
+      return PointAnnotationOptions(
+        geometry: Point(
+          coordinates: Position(facility.location.longitude, facility.location.latitude),
+        ),
+        iconSize: 1.0,
+        image: _facilityIconBytes, // if null, Mapbox default icon used
+      );
+    }).toList();
+
+    try {
+      await _facilityManager!.createMulti(options);
+    } catch (e) {
+      if (kDebugMode) debugPrint('createMulti error: $e');
     }
   }
 
-  void _updateNavigationState(Position position) {
-    if (!mounted || _routeSteps.isEmpty) return;
-    final userLocation = LatLng(position.latitude, position.longitude);
+  void _applyFilter([FacilityType? filter]) {
+    if (filter != null) {
+      _activeFilter = filter;
+    }
 
-    if (_currentStepIndex < _routeSteps.length - 1) {
-      final nextStep = _routeSteps[_currentStepIndex + 1];
-      final distanceToNextManeuver = Geolocator.distanceBetween(userLocation.latitude, userLocation.longitude, nextStep.startLocation.latitude, nextStep.startLocation.longitude);
-      if (distanceToNextManeuver < 20) {
-        setState(() => _currentStepIndex++);
+    if (!mounted) return;
+    setState(() {
+      if (_activeFilter == FacilityType.unknown) {
+        _filteredFacilities = List.from(_allFacilities);
+      } else {
+        _filteredFacilities =
+            _allFacilities.where((f) => f.type == _activeFilter).toList();
       }
-      setState(() => _distanceToNextStep = distanceToNextManeuver);
-    } else {
-      setState(() => _distanceToNextStep = 0);
-    }
+      if (_selectedFacility != null && !_filteredFacilities.contains(_selectedFacility)) {
+        _selectedFacility = null;
+      }
+    });
+
+    // update markers on map
+    unawaited(_updateFacilityAnnotations());
   }
 
-  Future<void> _getRoute(LatLng destination) async {
-    if (_currentPosition == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lokasi saat ini tidak ditemukan.")));
+  Future<void> _startNavigation(Hospital facility) async {
+    if (_currentPosition == null || _mapboxMapController == null || _polylineManager == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lokasi Anda belum tersedia')),
+        );
+      }
       return;
     }
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _loadingMessage = "Membuat rute navigasi...";
-    });
 
-    final start = _currentPosition!;
-    final url = 'https://api.openrouteservice.org/v2/directions/driving-car?api_key=$_orsApiKey&start=${start.longitude},${start.latitude}&end=${destination.longitude},${destination.latitude}';
+    final userLat = _currentPosition!.latitude;
+    final userLng = _currentPosition!.longitude;
+    final destLat = facility.location.latitude;
+    final destLng = facility.location.longitude;
+
+    final tokenEncoded = Uri.encodeComponent(_mapboxToken);
+    final url =
+        'https://api.mapbox.com/directions/v5/mapbox/driving/$userLng,$userLat;$destLng,$destLat?geometries=geojson&overview=full&steps=false&access_token=$tokenEncoded';
+
     try {
-      final response = await http.get(Uri.parse(url));
-      if (!mounted) return;
-
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final features = data['features'][0];
-        final geometry = features['geometry']['coordinates'] as List;
-        final points = geometry.map((p) => LatLng(p[1], p[0])).toList();
-        final properties = features['properties']['summary'];
-        final segments = features['properties']['segments'][0];
-        final stepsData = segments['steps'] as List;
+        final data = jsonDecode(response.body);
+        final coords = (data['routes'][0]['geometry']['coordinates'] as List)
+            .map((c) => Position((c[0] as num).toDouble(), (c[1] as num).toDouble()))
+            .toList();
 
-        final List<RouteStep> steps = stepsData.map((step) {
-          final wayPoints = step['way_points'] as List;
-          final startPointIndex = wayPoints[0];
-          final startCoord = geometry[startPointIndex];
-          return RouteStep(instruction: step['instruction'], distance: (step['distance'] as num).toDouble(), startLocation: LatLng(startCoord[1], startCoord[0]));
-        }).toList();
+        // Hapus polyline lama supaya tidak double
+        await _polylineManager!.deleteAll();
 
-        setState(() {
-          _routePoints = points;
-          _routeSteps = steps;
-          _currentStepIndex = 0;
-          _totalRouteDistance = "${((properties['distance'] as num) / 1000).toStringAsFixed(2)} km";
-          _totalRouteDuration = "${((properties['duration'] as num) / 60).ceil()} menit";
-          _isNavigating = true;
-        });
+        // Tambah polyline baru (LineString required)
+        await _polylineManager!.create(
+          PolylineAnnotationOptions(
+            geometry: LineString(coordinates: coords),
+            lineColor: Colors.blue.value,
+            lineWidth: 6,
+          ),
+        );
+
+        // Add/Update explicit destination marker
+        await _addOrUpdateDestinationMarker(
+          Point(coordinates: Position(destLng, destLat)),
+        );
+
+        // Center camera to user with nav style (tilt and bearing)
+        final bearing = _currentPosition?.heading ?? 0.0;
+        await _mapboxMapController!.easeTo(
+          CameraOptions(
+            center: Point(coordinates: Position(userLng, userLat)),
+            zoom: 16.5,
+            pitch: 60.0,
+            bearing: bearing,
+          ),
+          MapAnimationOptions(duration: 900),
+        );
+
+        // store selected facility for UI
+        setState(() => _selectedFacility = facility);
       } else {
-        throw Exception('Gagal memuat rute');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal ambil rute: ${response.body}')),
+          );
+        }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mendapatkan rute: ${e.toString()}')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _stopNavigation() {
-    if (!mounted) return;
-    setState(() {
-      _isNavigating = false;
-      _routePoints = [];
-      _routeSteps = [];
-      _currentStepIndex = 0;
-    });
-    if (_currentPosition != null) {
-      _mapController.move(LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 14.0);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error ambil rute: $e')),
+        );
+      }
     }
   }
 
@@ -300,222 +543,251 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     super.build(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNavigating ? "Mode Navigasi" : "Fasilitas Kesehatan Terdekat"),
+        title: const Text("Fasilitas Kesehatan Terdekat"),
         backgroundColor: primaryColor,
         foregroundColor: whiteColor,
-        leading: _isNavigating ? IconButton(icon: const Icon(Icons.close), onPressed: _stopNavigation, tooltip: "Hentikan Navigasi") : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Data',
+            onPressed: () {
+              final pos = _currentPosition;
+              final base = pos != null ? LatLng(pos.latitude, pos.longitude) : _defaultLocation;
+              unawaited(_fetchAndProcessFacilities(base));
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
           _buildMap(),
-          if (!_isNavigating && _facilities.isNotEmpty) _buildFacilityListSheet(),
-          if (_isNavigating) _buildNavigationUI(),
+          Positioned(top: 10, left: 10, right: 10, child: _buildFilterChips()),
+          if (_filteredFacilities.isNotEmpty) _buildFacilityListSheet(),
           if (_isLoading) _buildLoadingOverlay(),
         ],
       ),
-      floatingActionButton: _isNavigating ? null : FloatingActionButton(
-        onPressed: () {
-          if (_currentPosition != null) {
-            _mapController.move(LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 14.0);
-          }
-        },
+      floatingActionButton: FloatingActionButton(
         backgroundColor: primaryColor,
         child: const Icon(Icons.my_location, color: whiteColor),
+        onPressed: () {
+          final pos = _currentPosition;
+          final target = pos != null
+              ? Point(coordinates: Position(pos.longitude, pos.latitude))
+              : Point(coordinates: Position(_defaultLocation.longitude, _defaultLocation.latitude));
+
+          _mapboxMapController?.flyTo(
+            CameraOptions(center: target, zoom: pos != null ? 16.0 : 15.0),
+            MapAnimationOptions(duration: 1000),
+          );
+        },
       ),
     );
   }
 
   Widget _buildMap() {
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: _currentPosition != null ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) : _defaultLocation,
-        initialZoom: 14.0,
+    return MapWidget(
+      key: const ValueKey("mapWidget"),
+      onMapCreated: _onMapCreated,
+      cameraOptions: CameraOptions(
+        center: Point(coordinates: Position(_defaultLocation.longitude, _defaultLocation.latitude)),
+        zoom: 13.0,
       ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'dev.rescuein.app', // Ganti dengan package name Anda
-        ),
-        if (_routePoints.isNotEmpty)
-          PolylineLayer(polylines: [ Polyline(points: _routePoints, strokeWidth: 5, color: Colors.blue.shade700) ]),
-        if (!_isNavigating)
-          MarkerLayer(
-            markers: _facilities.map((facility) {
-              bool isSelected = facility == _selectedFacility;
-              IconData iconData;
-              Color iconColor;
-              switch (facility.type) {
-                case 'hospital':
-                  iconData = Icons.local_hospital;
-                  iconColor = isSelected ? Colors.red.shade700 : Colors.red.shade400;
-                  break;
-                case 'clinic':
-                  iconData = Icons.medical_services;
-                  iconColor = isSelected ? Colors.orange.shade700 : Colors.orange.shade400;
-                  break;
-                case 'pharmacy':
-                  iconData = Icons.local_pharmacy;
-                  iconColor = isSelected ? pharmacyColor : Colors.grey;
-                  break;
-                default:
-                  iconData = Icons.location_on;
-                  iconColor = Colors.grey;
-              }
-              return Marker(
-                width: 150, height: 100, point: facility.location,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedFacility = facility);
-                    _mapController.move(facility.location, 15.0);
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0,2))]),
-                        child: Text(facility.name, style: bodySmallTextStyle.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, maxLines: 2),
-                      ),
-                      Icon(iconData, color: iconColor, size: 40),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        if (_currentPosition != null)
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 4)]
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: CircleAvatar(radius: 6, backgroundColor: Colors.blue.shade800),
-                  ),
-                ),
-                width: 20, height: 20,
-              )
-            ],
-          )
-      ],
+      styleUri: MapboxStyles.MAPBOX_STREETS,
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _buildFilterChip("Semua", FacilityType.unknown, Icons.map),
+          _buildFilterChip("Rumah Sakit", FacilityType.hospital, Icons.local_hospital),
+          _buildFilterChip("Klinik", FacilityType.clinic, Icons.medical_services),
+          _buildFilterChip("Apotek", FacilityType.pharmacy, Icons.local_pharmacy),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, FacilityType type, IconData icon) {
+    final isSelected = _activeFilter == type;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: FilterChip(
+        label: Text(label),
+        avatar: Icon(icon, color: isSelected ? Colors.white : textPrimaryColor),
+        selected: isSelected,
+        onSelected: (selected) {
+          if (selected) _applyFilter(type);
+        },
+        backgroundColor: Colors.white,
+        selectedColor: primaryColor,
+        labelStyle: TextStyle(color: isSelected ? Colors.white : textPrimaryColor),
+        showCheckmark: false,
+      ),
     );
   }
 
   Widget _buildFacilityListSheet() {
     return DraggableScrollableSheet(
-      initialChildSize: 0.3, minChildSize: 0.1, maxChildSize: 0.6,
+      initialChildSize: 0.35,
+      minChildSize: 0.15,
+      maxChildSize: 0.7,
       builder: (context, scrollController) {
         return Container(
-          decoration: BoxDecoration(color: cardColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(20)), boxShadow: [strongShadow]),
-          child: ListView.separated(
-            controller: scrollController, itemCount: _facilities.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
-            itemBuilder: (context, index) {
-              final facility = _facilities[index];
-              IconData iconData;
-              Color iconColor;
-              String typeName = "Lainnya";
-              switch (facility.type) {
-                case 'hospital':
-                  iconData = Icons.local_hospital_outlined;
-                  iconColor = primaryColor;
-                  typeName = "Rumah Sakit";
-                  break;
-                case 'clinic':
-                  iconData = Icons.medical_services_outlined;
-                  iconColor = Colors.orange;
-                  typeName = "Klinik / Puskesmas";
-                  break;
-                case 'pharmacy':
-                  iconData = Icons.local_pharmacy_outlined;
-                  iconColor = pharmacyColor;
-                  typeName = "Apotek";
-                  break;
-                default:
-                  iconData = Icons.pin_drop_outlined;
-                  iconColor = Colors.grey;
-              }
-              return ListTile(
-                leading: CircleAvatar(backgroundColor: iconColor.withOpacity(0.1), child: Icon(iconData, color: iconColor)),
-                title: Text(facility.name, style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.bold)),
-                subtitle: Text('$typeName • Jarak: ${facility.distanceInKm?.toStringAsFixed(2) ?? '-'} km', style: bodySmallTextStyle.copyWith(color: textSecondaryColor)),
-                trailing: facility.type == 'pharmacy' ? null : IconButton(icon: Icon(Icons.directions, color: primaryColor), onPressed: () => _getRoute(facility.location), tooltip: 'Mulai Navigasi'),
-                onTap: () {
-                  setState(() => _selectedFacility = facility);
-                  _mapController.move(facility.location, 15.0);
-                },
-              );
-            },
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [strongShadow],
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              if (_filteredFacilities.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, color: primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Ditemukan ${_filteredFacilities.length} fasilitas kesehatan',
+                        style: bodySmallTextStyle.copyWith(
+                          color: textSecondaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: _filteredFacilities.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
+                  itemBuilder: (context, index) => _buildFacilityListItem(_filteredFacilities[index]),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildNavigationUI() {
-    if (_routeSteps.isEmpty) return const SizedBox.shrink();
-    return Positioned.fill(child: Column(children: [ _buildNavigationInstructionCard(), const Spacer(), _buildNavigationInfoFooter() ]));
-  }
+  Widget _buildFacilityListItem(Hospital facility) {
+    IconData iconData;
+    Color iconColor;
+    String typeName;
 
-  Widget _buildNavigationInstructionCard() {
-    final currentStep = _routeSteps[_currentStepIndex];
-    String distanceText = _currentStepIndex < _routeSteps.length - 1 ? 'Dalam ${_distanceToNextStep.toStringAsFixed(0)} m' : 'Anda akan segera tiba';
-    return Card(
-      margin: const EdgeInsets.all(8), elevation: 8,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(children: [
-          const Icon(Icons.navigation, size: 40, color: primaryColor),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(distanceText, style: bodyMediumTextStyle.copyWith(color: textSecondaryColor)),
-              Text(currentStep.instruction, style: heading5TextStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
-            ]),
-          )
-        ]),
-      ),
-    );
-  }
+    switch (facility.type) {
+      case FacilityType.hospital:
+        iconData = Icons.local_hospital;
+        iconColor = hospitalColor;
+        typeName = "Rumah Sakit";
+        break;
+      case FacilityType.clinic:
+        iconData = Icons.medical_services;
+        iconColor = clinicColor;
+        typeName = "Klinik / Puskesmas";
+        break;
+      case FacilityType.pharmacy:
+        iconData = Icons.local_pharmacy;
+        iconColor = pharmacyColor;
+        typeName = "Apotek";
+        break;
+      default:
+        iconData = Icons.location_on;
+        iconColor = Colors.grey;
+        typeName = "Fasilitas Kesehatan";
+    }
 
-  Widget _buildNavigationInfoFooter() {
-    return Card(
-      margin: const EdgeInsets.all(0), elevation: 10,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          Column(mainAxisSize: MainAxisSize.min, children: [
-            Text("ESTIMASI TIBA", style: bodySmallTextStyle.copyWith(color: textSecondaryColor)),
-            const SizedBox(height: 4),
-            Text(_totalRouteDuration, style: heading5TextStyle),
-          ]),
-          Column(mainAxisSize: MainAxisSize.min, children: [
-            Text("SISA JARAK", style: bodySmallTextStyle.copyWith(color: textSecondaryColor)),
-            const SizedBox(height: 4),
-            Text(_totalRouteDistance, style: heading5TextStyle),
-          ]),
-        ]),
+    final isSelected = _selectedFacility?.name == facility.name &&
+        _selectedFacility?.location == facility.location;
+
+    return Container(
+      color: isSelected ? primaryColor.withAlpha(20) : null,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: iconColor.withAlpha(26),
+          child: Icon(iconData, color: iconColor, size: 20),
+        ),
+        title: Text(
+          facility.name,
+          style: bodyMediumTextStyle.copyWith(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              typeName,
+              style: bodySmallTextStyle.copyWith(
+                color: iconColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (facility.distanceInKm != null)
+              Text(
+                '${facility.distanceInKm!.toStringAsFixed(1)} km dari lokasi Anda',
+                style: bodySmallTextStyle.copyWith(color: textSecondaryColor),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (facility.type != FacilityType.pharmacy)
+              IconButton(
+                icon: const Icon(Icons.directions, color: primaryColor),
+                onPressed: () => _startNavigation(facility),
+                tooltip: 'Navigasi (in-app)',
+              ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+        onTap: () => _onFacilitySelected(facility),
       ),
     );
   }
 
   Widget _buildLoadingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.6),
+      color: Colors.black.withAlpha(153),
       child: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const CircularProgressIndicator(color: primaryColor),
-          const SizedBox(height: 20),
-          Text(_loadingMessage, style: modernWhiteTextStyle),
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: primaryColor),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [strongShadow],
+              ),
+              child: Text(
+                _loadingMessage,
+                style: bodyMediumTextStyle.copyWith(fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

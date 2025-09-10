@@ -5,14 +5,14 @@ import 'package:rescuein/bloc/load_profile/load_profile_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/theme.dart' as theme;
 
-class EmergencyContactScreen extends StatefulWidget {
-  const EmergencyContactScreen({super.key});
+class EmergencyScreen extends StatefulWidget {
+  const EmergencyScreen({super.key});
 
   @override
-  State<EmergencyContactScreen> createState() => _EmergencyContactScreenState();
+  State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
-class _EmergencyContactScreenState extends State<EmergencyContactScreen>
+class _EmergencyScreenState extends State<EmergencyScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -97,10 +97,10 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
           child: SafeArea(
             child: Column(
               children: [
-                // Header dengan animasi berkedip
+                // Header with animation
                 _buildEmergencyHeader(),
                 
-                // Body dengan kontak darurat
+                // Body with emergency contacts
                 Expanded(
                   child: BlocBuilder<ProfileBloc, ProfileState>(
                     builder: (context, state) {
@@ -124,114 +124,117 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Widget _buildEmergencyHeader() {
+    // ... (Your _buildEmergencyHeader code remains unchanged)
     return Container(
-      margin: const EdgeInsets.all(theme.AppSpacing.lg),
-      padding: const EdgeInsets.all(theme.AppSpacing.xl),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red.shade600, Colors.red.shade800],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        margin: const EdgeInsets.all(theme.AppSpacing.lg),
+        padding: const EdgeInsets.all(theme.AppSpacing.xl),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.red.shade600, Colors.red.shade800],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Animated emergency icon
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 1500),
-            tween: Tween(begin: 0.8, end: 1.2),
-            builder: (context, scale, child) {
-              return Transform.scale(
-                scale: scale,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
+        child: Column(
+          children: [
+            // Animated emergency icon
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1500),
+              tween: Tween(begin: 0.8, end: 1.2),
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.emergency_rounded,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.emergency_rounded,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                ),
-              );
-            },
-            onEnd: () {
-              // Reverse animation untuk efek berkedip
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  setState(() {});
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'SITUASI DARURAT',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+                );
+              },
+              onEnd: () {
+                // Reverse animation for blinking effect
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) {
+                    setState(() {});
+                  }
+                });
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pilih kontak untuk panggilan darurat',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
+            const SizedBox(height: 16),
+            const Text(
+              'SITUASI DARURAT',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+            const SizedBox(height: 8),
+            const Text(
+              'Pilih kontak untuk panggilan darurat',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
   }
 
+  // --- 🎨 KEY CHANGE HERE ---
+  // Replaced Column with ListView to make it scrollable
   Widget _buildEmergencyContacts(ProfileLoaded state) {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.symmetric(horizontal: theme.AppSpacing.lg),
-      child: Column(
-        children: [
-          // Nomor Darurat 112
-          _buildEmergencyCard(
-            icon: Icons.local_hospital_rounded,
-            title: 'Ambulans & Pemadam',
-            subtitle: 'Nomor Darurat Nasional',
-            phoneNumber: '112',
-            backgroundColor: Colors.red,
-            isMainEmergency: true,
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Kontak Keluarga dari profile
-          _buildEmergencyCard(
-            icon: Icons.family_restroom_rounded,
-            title: 'Kontak Darurat Keluarga',
-            subtitle: state.user.nama,
-            phoneNumber: state.user.kontakDarurat,
-            backgroundColor: Colors.blue,
-            isMainEmergency: false,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Tips darurat
-          _buildEmergencyTips(),
-        ],
-      ),
+      children: [
+        // Emergency Number 112
+        _buildEmergencyCard(
+          icon: Icons.local_hospital_rounded,
+          title: 'Ambulans & Pemadam',
+          subtitle: 'Nomor Darurat Nasional',
+          phoneNumber: '112',
+          backgroundColor: Colors.red,
+          isMainEmergency: true,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Family contact from profile
+        _buildEmergencyCard(
+          icon: Icons.family_restroom_rounded,
+          title: 'Kontak Darurat Keluarga',
+          subtitle: state.user.nama,
+          phoneNumber: state.user.kontakDarurat,
+          backgroundColor: Colors.blue,
+          isMainEmergency: false,
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Emergency tips
+        _buildEmergencyTips(),
+        
+        const SizedBox(height: 24), // Added padding at the bottom
+      ],
     );
   }
 
@@ -243,7 +246,8 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
     required Color backgroundColor,
     required bool isMainEmergency,
   }) {
-    return Container(
+    // ... (Your _buildEmergencyCard code remains unchanged)
+        return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -265,7 +269,7 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                // Icon container dengan efek glow
+                // Icon container with glow effect
                 Container(
                   width: 70,
                   height: 70,
@@ -363,7 +367,8 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Widget _buildEmergencyTips() {
-    return Container(
+    // ... (Your _buildEmergencyTips code remains unchanged)
+        return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -410,6 +415,7 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Widget _buildTipItem(String tip) {
+    // ... (Your _buildTipItem code remains unchanged)
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -438,7 +444,8 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    // ... (Your _buildLoadingState code remains unchanged)
+        return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -459,6 +466,7 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Widget _buildErrorState() {
+    // ... (Your _buildErrorState code remains unchanged)
     return Center(
       child: Container(
         margin: const EdgeInsets.all(theme.AppSpacing.lg),
@@ -544,9 +552,10 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Future<void> _showCallConfirmation(String phoneNumber, String contactName) async {
-    if (!mounted) return;
+    // ... (Your _showCallConfirmation code remains unchanged)
+      if (!mounted) return;
 
-    // Hapus karakter non-digit dan format nomor
+    // Remove non-digit characters and format the number
     final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
     
     return showDialog<void>(
@@ -702,11 +711,12 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen>
   }
 
   Future<void> _makeDirectCall(String phoneNumber) async {
+    // ... (Your _makeDirectCall code remains unchanged)
     try {
-      // Format nomor telepon untuk panggilan
+      // Format the phone number for the call
       String formattedNumber = phoneNumber;
       
-      // Jika nomor tidak dimulai dengan +, tambahkan +62 untuk nomor Indonesia
+      // If the number doesn't start with +, add +62 for Indonesian numbers
       if (!phoneNumber.startsWith('+') && phoneNumber != '112') {
         if (phoneNumber.startsWith('0')) {
           formattedNumber = '+62${phoneNumber.substring(1)}';
