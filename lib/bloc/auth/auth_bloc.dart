@@ -3,6 +3,7 @@ import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:meta/meta.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart';
+import 'package:rescuein/services/session_manager.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -10,21 +11,17 @@ part 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   StreamSubscription<User?>? _userSubscription;
-  bool _isInitialCheck = true; // Flag untuk membedakan check pertama vs perubahan
+  bool _isInitialCheck = true;
 
   AuthBloc({required AuthRepository authRepository})
       : _authRepository = authRepository,
         super(AuthInitial()) {
-
-    // Daftarkan semua event handler
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<AuthLoginRequested>(_onAuthLoginRequested);
     on<AuthSignupRequested>(_onAuthSignupRequested);
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
 
-    // PERBAIKAN: Stream listener hanya untuk perubahan SETELAH initial check
     _userSubscription = _authRepository.user.listen((user) {
-      // Jangan trigger saat startup/initial check
       if (!_isInitialCheck) {
         print('Firebase User changed (not initial): ${user?.email ?? 'null'}');
         add(AuthCheckRequested());
@@ -38,17 +35,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     print('AuthCheckRequested received (initial: $_isInitialCheck)');
     
-    // Emit loading hanya jika bukan dari state loading
     if (state is! AuthLoading) {
       emit(AuthLoading());
     }
     
     try {
-      // Gunakan currentUser getter dari repository
       final currentUser = _authRepository.currentUser;
       print('Current user: ${currentUser?.email ?? 'null'}');
       
-      // Beri delay kecil untuk memastikan UI splash screen terlihat
       if (_isInitialCheck) {
         await Future.delayed(const Duration(milliseconds: 1000));
       }
@@ -59,7 +53,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthUnauthenticated());
       }
       
-      // Set flag bahwa initial check sudah selesai
       if (_isInitialCheck) {
         _isInitialCheck = false;
       }
@@ -68,7 +61,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print('AuthCheckRequested error: $e');
       emit(AuthUnauthenticated());
       
-      // Set flag bahwa initial check sudah selesai meskipun error
       if (_isInitialCheck) {
         _isInitialCheck = false;
       }
@@ -88,11 +80,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password
       );
       
-      // Tunggu sebentar untuk memastikan Firebase sudah update
-      await Future.delayed(const Duration(milliseconds: 500));
-      
       final currentUser = _authRepository.currentUser;
       if (currentUser != null) {
+        final userModel = await _authRepository.getUserData(currentUser.uid);
+        await SessionManager.instance.saveSession(userModel);
         emit(AuthAuthenticated(user: currentUser));
       } else {
         throw Exception('Login berhasil tapi user tidak ditemukan');
@@ -128,11 +119,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         catatanTambahan: event.catatanTambahan,
       );
       
-      // Tunggu sebentar untuk memastikan Firebase sudah update
-      await Future.delayed(const Duration(milliseconds: 500));
-      
       final currentUser = _authRepository.currentUser;
       if (currentUser != null) {
+        final userModel = await _authRepository.getUserData(currentUser.uid);
+        await SessionManager.instance.saveSession(userModel);
         emit(AuthAuthenticated(user: currentUser));
       } else {
         throw Exception('Registrasi berhasil tapi user tidak ditemukan');
@@ -153,15 +143,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     
     try {
       await _authRepository.logOut();
+      await SessionManager.instance.clearSession();
       emit(AuthUnauthenticated());
     } catch (e) {
       print('Logout error: $e');
-      // Tetap emit unauthenticated meskipun ada error
+      await SessionManager.instance.clearSession();
       emit(AuthUnauthenticated());
     }
   }
 
-  // Helper method untuk handle error message
   String _getErrorMessage(dynamic error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {

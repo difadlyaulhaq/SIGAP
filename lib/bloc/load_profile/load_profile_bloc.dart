@@ -1,7 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart'; // Pastikan path ini benar
-import 'package:rescuein/models/medical_history_model.dart'; // Pastikan path ini benar
 
 import 'load_profile_event.dart';
 import 'load_profile_state.dart';
