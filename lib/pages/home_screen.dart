@@ -11,6 +11,7 @@ import 'package:rescuein/models/article_model.dart';
 import 'package:rescuein/pages/hospital_nearby_screen.dart';
 import 'package:rescuein/pages/emergency_screen.dart';
 import 'package:rescuein/services/news_api_service.dart';
+import 'package:rescuein/services/session_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/theme.dart' as theme;
@@ -132,7 +133,7 @@ class _HomeScreenViewState extends State<_HomeScreenView>
     return Scaffold(
       backgroundColor: theme.backgroundLight,
       body: SafeArea(
-        child: PageView(  
+        child: PageView(
           controller: _pageController,
           onPageChanged: (index) {
             setState(() => _pageIndex = index);
@@ -229,9 +230,8 @@ class _HomeScreenViewState extends State<_HomeScreenView>
     required bool isLargeScreen,
   }) {
     final bool isSelected = _pageIndex == index;
-    final double iconSize = isLargeScreen
-        ? (isSelected ? 32 : 28)
-        : (isSelected ? 28 : 24);
+    final double iconSize =
+        isLargeScreen ? (isSelected ? 32 : 28) : (isSelected ? 28 : 24);
     return GestureDetector(
       onTap: () => _onNavigationTap(index),
       child: AnimatedContainer(
@@ -270,6 +270,7 @@ class _HomePageContentState extends State<HomePageContent>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  String _userName = 'Pengguna';
 
   @override
   void initState() {
@@ -288,13 +289,23 @@ class _HomePageContentState extends State<HomePageContent>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
-          ),
-        );
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
 
     _animationController.forward();
+    _loadUserDataFromLocal();
+  }
+
+  Future<void> _loadUserDataFromLocal() async {
+    final user = await SessionManager.instance.getUserData();
+    if (user != null && mounted) {
+      setState(() {
+        _userName = user.nama.split(' ').first;
+      });
+    }
   }
 
   @override
@@ -392,7 +403,7 @@ class _HomePageContentState extends State<HomePageContent>
             SliverToBoxAdapter(
               child: BlocBuilder<ProfileBloc, ProfileState>(
                 builder: (context, state) {
-                  String userName = 'Pengguna';
+                  String userName = _userName;
                   if (state is ProfileLoaded) {
                     userName = state.user.nama.split(' ').first;
                   }
@@ -952,9 +963,8 @@ class _HomePageContentState extends State<HomePageContent>
     Size screenSize,
     double hPadding,
   ) {
-    final displayArticles = articles.length > 5
-        ? articles.take(5).toList()
-        : articles;
+    final displayArticles =
+        articles.length > 5 ? articles.take(5).toList() : articles;
     return SizedBox(
       height: screenSize.height * 0.28,
       child: ListView.separated(

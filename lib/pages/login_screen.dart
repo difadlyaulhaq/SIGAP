@@ -371,26 +371,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildForgotPassword() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth > 600;
-    final fontSize = isTablet ? 16.0 : 14.0;
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: () {},
-        child: Text(
-          'Lupa Password?',
-          style: bodyMediumTextStyle.copyWith(
-            color: primaryColor,
-            fontWeight: FontWeight.w600,
-            fontSize: fontSize,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildDivider() {
     final screenWidth = MediaQuery.of(context).size.width;
