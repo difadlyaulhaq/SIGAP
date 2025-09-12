@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rescuein/bloc/auth/auth_bloc.dart';
+import 'package:rescuein/bloc/auth/auth_state.dart'; 
 import 'package:rescuein/pages/home_screen.dart';
 import 'package:rescuein/pages/signup_screen.dart';
 import 'package:rescuein/theme/theme.dart';
@@ -37,11 +38,11 @@ class _LoginScreenState extends State<LoginScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _animationController.forward();
   }
@@ -57,11 +58,11 @@ class _LoginScreenState extends State<LoginScreen>
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
-        AuthLoginRequested(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        ),
-      );
+            AuthLoginRequested(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            ),
+          );
     }
   }
 
@@ -115,11 +116,6 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // SizedBox(
-                          //   height: isSmallScreen
-                          //       ? AppSpacing.lg
-                          //       : AppSpacing.xxl,
-                          // ),
                           _buildHeader(logoSize, isTablet),
                           SizedBox(
                             height: isSmallScreen
@@ -129,17 +125,10 @@ class _LoginScreenState extends State<LoginScreen>
                           _buildLoginForm(screenWidth),
                           const SizedBox(height: AppSpacing.lg),
                           _buildLoginButton(),
-                          // const SizedBox(height: AppSpacing.md),
-                          // _buildForgotPassword(),
                           const SizedBox(height: AppSpacing.xl),
                           _buildDivider(),
                           const SizedBox(height: AppSpacing.lg),
                           _buildRegisterLink(),
-                          // SizedBox(
-                          //   height: isSmallScreen
-                          //       ? AppSpacing.md
-                          //       : AppSpacing.lg,
-                          // ),
                         ],
                       ),
                     ),

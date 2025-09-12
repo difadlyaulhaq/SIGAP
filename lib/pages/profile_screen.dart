@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:rescuein/bloc/auth/auth_bloc.dart';
 import 'package:rescuein/bloc/auth/auth_repository.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_bloc.dart';
 import 'package:rescuein/bloc/load_profile/load_profile_event.dart';
@@ -16,9 +17,9 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ProfileBloc(
-        authRepository: context.read<AuthRepository>(),
-      )..add(FetchProfileData()),
+      create: (context) =>
+          ProfileBloc(authRepository: context.read<AuthRepository>())
+            ..add(FetchProfileData()),
       child: const ProfileView(),
     );
   }
@@ -31,7 +32,8 @@ class ProfileView extends StatefulWidget {
   State<ProfileView> createState() => _ProfileViewState();
 }
 
-class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin {
+class _ProfileViewState extends State<ProfileView>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -44,21 +46,17 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -135,6 +133,7 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
   }
 
   void _handleLogout() {
+    context.read<AuthBloc>().add(AuthLogoutRequested());
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -148,49 +147,37 @@ class _ProfileViewState extends State<ProfileView> with TickerProviderStateMixin
     );
   }
 
-  // Di dalam class _ProfileViewState di file lib/pages/profile_screen.dart
+  void _showEmergencyQrCode(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-void _showEmergencyQrCode(BuildContext context) async {
-  // Tampilkan dialog loading
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(child: CircularProgressIndicator()),
-  );
+    try {
+      final authRepo = context.read<AuthRepository>();
+      final userId = authRepo.currentUser!.uid;
+      final emergencyId = await authRepo.getOrCreateEmergencyId(userId);
+      const String vercelUrl = 'https://rescuein-backend.vercel.app';
+      final String url = '$vercelUrl/api/emergency?id=$emergencyId';
 
-  try {
-    final authRepo = context.read<AuthRepository>();
-    final userId = authRepo.currentUser!.uid;
-
-    // Langkah 1: Dapatkan emergencyId dari Firestore (tetap sama)
-    final emergencyId = await authRepo.getOrCreateEmergencyId(userId);
-
-    // Langkah 2: Bentuk URL menggunakan format Vercel (INI BAGIAN YANG DIUBAH)
-    // URL dasar dari Vercel Anda
-    const String vercelUrl = 'https://rescuein-backend.vercel.app';
-    // Gabungkan dengan path API dan query parameter '?id='
-    final String url = '$vercelUrl/api/emergency?id=$emergencyId';
-
-    // Pastikan widget masih ada sebelum melanjutkan
-    if (mounted) {
-      Navigator.of(context).pop(); // Tutup loading dialog
-
-      // Navigasi ke halaman QR dengan URL yang baru
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => EmergencyQrScreen(emergencyUrl: url),
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      Navigator.of(context).pop(); // Tutup loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => EmergencyQrScreen(emergencyUrl: url),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +191,7 @@ void _showEmergencyQrCode(BuildContext context) async {
 
     return Scaffold(
       backgroundColor: surfaceColor,
-      appBar: _buildAppBar(isLargeScreen),
+      appBar: _buildAppBar(context, isLargeScreen),
       body: SafeArea(
         child: BlocBuilder<ProfileBloc, ProfileState>(
           builder: (context, state) {
@@ -256,7 +243,7 @@ void _showEmergencyQrCode(BuildContext context) async {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(bool isLargeScreen) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isLargeScreen) {
     return AppBar(
       title: Text(
         'Profil Saya',
@@ -283,6 +270,12 @@ void _showEmergencyQrCode(BuildContext context) async {
       ),
       actions: [
         IconButton(
+          icon: Icon(Icons.refresh, color: whiteColor),
+          onPressed: () {
+            context.read<ProfileBloc>().add(FetchProfileData());
+          },
+        ),
+        IconButton(
           icon: Icon(Icons.settings_outlined, color: whiteColor),
           onPressed: () {},
         ),
@@ -291,7 +284,10 @@ void _showEmergencyQrCode(BuildContext context) async {
   }
 
   Widget _buildProfileHeader(
-      ProfileLoaded state, double screenWidth, bool isLargeScreen) {
+    ProfileLoaded state,
+    double screenWidth,
+    bool isLargeScreen,
+  ) {
     final double avatarSize = screenWidth * (isLargeScreen ? 0.20 : 0.25);
     final double cameraIconSize = avatarSize * 0.32;
     final double cameraIconContainerSize = avatarSize * 0.16;
@@ -500,9 +496,7 @@ void _showEmergencyQrCode(BuildContext context) async {
       ),
       title: Text(
         title,
-        style: bodyLargeTextStyle.copyWith(
-          fontSize: isLargeScreen ? 18 : 16,
-        ),
+        style: bodyLargeTextStyle.copyWith(fontSize: isLargeScreen ? 18 : 16),
       ),
       subtitle: Text(
         subtitle,
@@ -511,10 +505,7 @@ void _showEmergencyQrCode(BuildContext context) async {
           fontSize: isLargeScreen ? 14 : 12,
         ),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: textTertiaryColor,
-      ),
+      trailing: Icon(Icons.chevron_right, color: textTertiaryColor),
       onTap: onTap,
       contentPadding: EdgeInsets.symmetric(
         horizontal: isLargeScreen ? 24 : AppSpacing.lg,
@@ -549,11 +540,13 @@ void _showEmergencyQrCode(BuildContext context) async {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: mediumRadius,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: mediumRadius),
         ),
-        icon: Icon(Icons.logout, color: errorColor, size: isLargeScreen ? 28 : 24),
+        icon: Icon(
+          Icons.logout,
+          color: errorColor,
+          size: isLargeScreen ? 28 : 24,
+        ),
         label: Text(
           'Logout',
           style: buttonLargeTextStyle.copyWith(

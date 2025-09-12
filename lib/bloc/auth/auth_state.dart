@@ -1,9 +1,9 @@
-part of 'auth_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-@immutable
 sealed class AuthState {}
 
 final class AuthInitial extends AuthState {}
+
 
 // State saat proses autentikasi sedang berjalan
 final class AuthLoading extends AuthState {}

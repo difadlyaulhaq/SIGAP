@@ -280,7 +280,7 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     try {
       // Use create + update for user marker; we don't keep a field reference
       // because the manager keeps track of it. This avoids an unused-field lint.
-      final existing = await _userMarkerManager!.create(opts);
+      await _userMarkerManager!.create(opts);
       // We don't need to store `existing` in a field unless you need to update it later.
     } catch (e) {
       if (kDebugMode) debugPrint('User marker create/update error: $e');

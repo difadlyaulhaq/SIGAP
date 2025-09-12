@@ -1,21 +1,22 @@
-part of 'auth_bloc.dart';
+part of 'auth_bloc.dart'; // <-- HANYA BOLEH ADA DIRECTIVE INI
+
+// SEMUA IMPORT DIHAPUS DARI FILE INI
 
 @immutable
-sealed class AuthEvent {}
+abstract class AuthEvent {}
 
-// Event saat aplikasi dimulai untuk cek status login
-final class AuthCheckRequested extends AuthEvent {}
+class _AuthUserChanged extends AuthEvent {
+  final User? user;
+  _AuthUserChanged(this.user);
+}
 
-// Event untuk login
-final class AuthLoginRequested extends AuthEvent {
+class AuthLoginRequested extends AuthEvent {
   final String email;
   final String password;
-
   AuthLoginRequested({required this.email, required this.password});
 }
 
-// Event untuk signup, membawa semua data dari form multi-step
-final class AuthSignupRequested extends AuthEvent {
+class AuthSignupRequested extends AuthEvent {
   final String email;
   final String password;
   final String nama;
@@ -47,5 +48,4 @@ final class AuthSignupRequested extends AuthEvent {
   });
 }
 
-// Event untuk logout
-final class AuthLogoutRequested extends AuthEvent {}
+class AuthLogoutRequested extends AuthEvent {}

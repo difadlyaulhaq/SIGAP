@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rescuein/bloc/auth/auth_bloc.dart';
+import 'package:rescuein/bloc/auth/auth_state.dart';
 import 'package:rescuein/pages/home_screen.dart';
 import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/services/session_manager.dart';
@@ -18,6 +21,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _scaleAnimation;
   
   bool _hasNavigated = false;
+  bool _animationCompleted = false;
 
   @override
   void initState() {
@@ -41,30 +45,35 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       curve: Curves.elasticOut
     );
 
-    _startAnimationsAndNavigation();
+    _startAnimations();
   }
 
-  void _startAnimationsAndNavigation() {
+  void _startAnimations() {
     _scaleController.forward();
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) _fadeController.forward();
     });
     
+    // Tandai animasi selesai setelah durasi minimum splash screen
     Future.delayed(const Duration(milliseconds: 2500), () {
-      _checkSessionAndNavigate();
+      if (mounted) {
+        setState(() {
+          _animationCompleted = true;
+        });
+
+        // Jika setelah animasi selesai belum ada state auth yang masuk,
+        // kemungkinan besar user tidak login. Arahkan ke LoginScreen.
+        final currentState = context.read<AuthBloc>().state;
+        if (currentState is AuthInitial && !_hasNavigated) {
+            _navigateToScreen(const LoginScreen());
+        }
+      }
     });
-  }
 
-  Future<void> _checkSessionAndNavigate() async {
-    if (_hasNavigated || !mounted) return;
-
-    final bool isLoggedIn = await SessionManager.instance.isLoggedIn();
-    
-    if (isLoggedIn) {
-      _navigateToScreen(const HomeScreen());
-    } else {
-      _navigateToScreen(const LoginScreen());
-    }
+    // HAPUS Pemicu event karena BLoC sudah bekerja otomatis dari main.dart
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   context.read<AuthBloc>().add(AuthCheckRequested());
+    // });
   }
 
   @override
@@ -80,9 +89,37 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _hasNavigated = true;
     
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => screen),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
       (route) => false,
     );
+  }
+
+  Future<void> _handleAuthState(AuthState state) async {
+    // Tunggu animasi selesai sebelum navigasi
+    while (!_animationCompleted && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    if (!mounted || _hasNavigated) return;
+
+    if (state is AuthAuthenticated) {
+      _navigateToScreen(const HomeScreen());
+    } else if (state is AuthUnauthenticated) {
+      _navigateToScreen(const LoginScreen());
+    } else if (state is AuthFailure) {
+      try {
+        await SessionManager.instance.clearSession();
+      } catch (e) {
+        print('Error clearing session: $e');
+      }
+      _navigateToScreen(const LoginScreen());
+    }
   }
 
   @override
@@ -101,157 +138,187 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     return Scaffold(
       backgroundColor: surfaceColor,
-      body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          // Jangan handle state Initial, tunggu state konkrit (Authenticated/Unauthenticated)
+          if (state is! AuthInitial) {
+             print('Splash: Auth state changed to ${state.runtimeType}');
+             _handleAuthState(state);
+          }
+        },
+        child: SafeArea(
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: primaryGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Center(
-                child: SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            flex: isSmallScreen ? 1 : 2,
-                            child: const SizedBox(),
-                          ),
-                          
-                          ScaleTransition(
-                            scale: _scaleAnimation,
-                            child: FadeTransition(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Center(
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              flex: isSmallScreen ? 1 : 2,
+                              child: const SizedBox(),
+                            ),
+                            
+                            ScaleTransition(
+                              scale: _scaleAnimation,
+                              child: FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Container(
+                                  width: logoSize.clamp(80.0, 160.0),
+                                  height: logoSize.clamp(80.0, 160.0),
+                                  padding: EdgeInsets.all(screenWidth * 0.04),
+                                  decoration: BoxDecoration(
+                                    color: whiteColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: isTablet ? 30 : 20,
+                                        offset: Offset(0, isTablet ? 12 : 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.health_and_safety_rounded,
+                                        size: logoSize.clamp(40.0, 80.0),
+                                        color: primaryColor,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            
+                            SizedBox(height: screenHeight * 0.05),
+                            
+                            FadeTransition(
                               opacity: _fadeAnimation,
-                              child: Container(
-                                width: logoSize.clamp(80.0, 160.0),
-                                height: logoSize.clamp(80.0, 160.0),
-                                padding: EdgeInsets.all(screenWidth * 0.04),
-                                decoration: BoxDecoration(
-                                  color: whiteColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: isTablet ? 30 : 20,
-                                      offset: Offset(0, isTablet ? 12 : 8),
-                                    ),
-                                  ],
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.1,
                                 ),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          SizedBox(height: screenHeight * 0.05),
-                          
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.1,
-                              ),
-                              child: Text(
-                                "SIGAP",
-                                style: TextStyle(
-                                  fontSize: titleFontSize.clamp(32.0, 64.0),
-                                  fontWeight: FontWeight.w800,
-                                  color: whiteColor,
-                                  letterSpacing: 2,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                          
-                          SizedBox(height: screenHeight * 0.02),
-                          
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.15,
-                              ),
-                              child: Text(
-                                "Your Personal First Aid Assistant",
-                                style: TextStyle(
-                                  fontSize: subtitleFontSize.clamp(12.0, 20.0),
-                                  color: whiteColor.withOpacity(0.9),
-                                  fontWeight: FontWeight.w400,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      offset: const Offset(0, 1),
-                                      blurRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                          
-                          Flexible(
-                            flex: isSmallScreen ? 1 : 3,
-                            child: SizedBox(height: screenHeight * 0.1),
-                          ),
-                          
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  width: screenWidth * 0.08,
-                                  height: screenWidth * 0.08,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(whiteColor),
-                                    strokeWidth: isTablet ? 4.0 : 3.0,
-                                  ),
-                                ),
-                                SizedBox(height: screenHeight * 0.025),
-                                Text(
-                                  "Memuat aplikasi...",
+                                child: Text(
+                                  "SIGAP",
                                   style: TextStyle(
-                                    color: whiteColor.withOpacity(0.8),
-                                    fontSize: loadingTextFontSize.clamp(10.0, 18.0),
-                                    fontWeight: FontWeight.w300,
+                                    fontSize: titleFontSize.clamp(32.0, 64.0),
+                                    fontWeight: FontWeight.w800,
+                                    color: whiteColor,
+                                    letterSpacing: 2,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        offset: const Offset(0, 2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
                                   ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                          
-                          Flexible(
-                            flex: 1,
-                            child: const SizedBox(),
-                          ),
-                        ],
+                            
+                            SizedBox(height: screenHeight * 0.02),
+                            
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.15,
+                                ),
+                                child: Text(
+                                  "Your Personal First Aid Assistant",
+                                  style: TextStyle(
+                                    fontSize: subtitleFontSize.clamp(12.0, 20.0),
+                                    color: whiteColor.withOpacity(0.9),
+                                    fontWeight: FontWeight.w400,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        offset: const Offset(0, 1),
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                            
+                            Flexible(
+                              flex: isSmallScreen ? 1 : 3,
+                              child: SizedBox(height: screenHeight * 0.1),
+                            ),
+                            
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: BlocBuilder<AuthBloc, AuthState>(
+                                builder: (context, state) {
+                                  String loadingText = "Memuat aplikasi...";
+                                  
+                                  if (state is AuthLoading) {
+                                    loadingText = "Memeriksa sesi login...";
+                                  } else if (state is AuthFailure) {
+                                    loadingText = "Terjadi kesalahan...";
+                                  } else if (state is AuthAuthenticated) {
+                                    loadingText = "Autentikasi berhasil...";
+                                  }
+
+                                  return Column(
+                                    children: [
+                                      SizedBox(
+                                        width: screenWidth * 0.08,
+                                        height: screenWidth * 0.08,
+                                        child: CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<Color>(whiteColor),
+                                          strokeWidth: isTablet ? 4.0 : 3.0,
+                                        ),
+                                      ),
+                                      SizedBox(height: screenHeight * 0.025),
+                                      Text(
+                                        loadingText,
+                                        style: TextStyle(
+                                          color: whiteColor.withOpacity(0.8),
+                                          fontSize: loadingTextFontSize.clamp(10.0, 18.0),
+                                          fontWeight: FontWeight.w300,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                            
+                            Flexible(
+                              flex: 1,
+                              child: const SizedBox(),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -20,16 +20,10 @@ import 'package:rescuein/theme/theme.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
-  // Pastikan semua binding siap sebelum menjalankan kode async
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Muat environment variables dari file .env
   await dotenv.load(fileName: ".env");
-
-  // Atur Access Token untuk Mapbox
   MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN']!);
-
-  // Inisialisasi Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
@@ -40,14 +34,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Menggunakan MultiProvider untuk mendaftarkan semua Repository dan BLoC
-    // di satu tempat agar lebih rapi.
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<AuthRepository>(
           create: (context) => AuthRepository(),
         ),
-        // Tambahkan repository lain di sini jika ada
       ],
       child: MultiBlocProvider(
         providers: [
@@ -56,13 +47,11 @@ class MyApp extends StatelessWidget {
               authRepository: context.read<AuthRepository>(),
             ),
           ),
-          // MENAMBAHKAN PROFILE BLOC
           BlocProvider<ProfileBloc>(
             create: (context) => ProfileBloc(
               authRepository: context.read<AuthRepository>(),
             ),
           ),
-          // Tambahkan BLoC lain di sini jika ada
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -84,12 +73,7 @@ class MyApp extends StatelessWidget {
               elevation: 0,
             ),
           ),
-
-          // Halaman awal tetap SplashScreen, karena di sanalah logika
-          // pengecekan status login seharusnya berada.
           home: const SplashScreen(),
-
-          // Daftarkan semua rute untuk navigasi dengan nama
           routes: {
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
