@@ -96,9 +96,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// Tidak ada perubahan di bawah baris ini.
-// Sisa kode dari _HomeScreenView dan HomePageContent sudah benar.
-// ... (sisa kode Anda dari _HomeScreenView ke bawah) ...
 class _HomeScreenView extends StatefulWidget {
   const _HomeScreenView();
 
@@ -111,29 +108,21 @@ class _HomeScreenViewState extends State<_HomeScreenView>
   @override
   bool get wantKeepAlive => true;
 
-  late PageController _pageController;
   int _pageIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _pageIndex);
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
   void _onNavigationTap(int index) {
     if (_pageIndex != index) {
       setState(() => _pageIndex = index);
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
     }
   }
 
@@ -158,11 +147,8 @@ class _HomeScreenViewState extends State<_HomeScreenView>
     return Scaffold(
       backgroundColor: theme.backgroundLight,
       body: SafeArea(
-        child: PageView(
-          controller: _pageController,
-          onPageChanged: (index) {
-            setState(() => _pageIndex = index);
-          },
+        child: IndexedStack(
+          index: _pageIndex,
           children: [
             HomePageContent(onNavigate: _onNavigationTap),
             const HospitalNearbyPage(),
