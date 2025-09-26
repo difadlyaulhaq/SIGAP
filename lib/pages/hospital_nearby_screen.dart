@@ -14,7 +14,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../models/hospital.dart';
 
-// --- STYLING ---
 const Color primaryColor = Color(0xFF4A90E2);
 const Color hospitalColor = Color(0xFFD0021B);
 const Color clinicColor = Color(0xFFF5A623);
@@ -30,7 +29,8 @@ final BoxShadow strongShadow = BoxShadow(
   blurRadius: 8,
   offset: Offset(0, 4),
 );
-// --- END OF STYLING ---
+
+enum NavigationMode { normal, navigation }
 
 class HospitalNearbyPage extends StatefulWidget {
   const HospitalNearbyPage({super.key});
@@ -45,21 +45,19 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   bool get wantKeepAlive => true;
 
   MapboxMap? _mapboxMapController;
+  NavigationMode _currentMode = NavigationMode.normal;
 
-  // Managers for POIs
-  PointAnnotationManager? _facilityManager; // all facilities markers
-  PolylineAnnotationManager? _polylineManager; // route polyline
-  PointAnnotationManager? _userMarkerManager; // user marker
-  PointAnnotationManager? _destinationManager; // destination marker
+  PointAnnotationManager? _facilityManager;
+  PolylineAnnotationManager? _polylineManager;
+  PointAnnotationManager? _userMarkerManager;
+  PointAnnotationManager? _destinationManager;
 
-  // Streams / cancelables
   StreamSubscription<geo.Position>? _positionStream;
   Cancelable? _facilityTapCancelable;
 
-  // Assets
-  Uint8List? _facilityIconBytes; // generic marker (fallback)
-  Uint8List? _userIconBytes;     // user marker icon
-  Uint8List? _destIconBytes;     // destination marker icon
+  Uint8List? _facilityIconBytes;
+  Uint8List? _userIconBytes;
+  Uint8List? _destIconBytes;
 
   bool _isLoading = true;
   String _loadingMessage = "Memeriksa izin lokasi...";
@@ -68,11 +66,10 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   List<Hospital> _allFacilities = [];
   List<Hospital> _filteredFacilities = [];
   Hospital? _selectedFacility;
-  FacilityType _activeFilter = FacilityType.unknown; // unknown = Semua
+  FacilityType _activeFilter = FacilityType.unknown;
 
-  final LatLng _defaultLocation = const LatLng(-7.7956, 110.3695); // Yogyakarta
+  final LatLng _defaultLocation = const LatLng(-7.7956, 110.3695);
 
-  // Mapbox token (non-null, assert loaded in main)
   String get _mapboxToken => dotenv.env['MAPBOX_ACCESS_TOKEN']!;
 
   @override
@@ -83,7 +80,6 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   }
 
   Future<void> _loadMarkerAssets() async {
-    // Load 3 optional icons; fall back to default if not found
     Future<Uint8List?> load(String path) async {
       try {
         final ByteData bytes = await rootBundle.load(path);
@@ -111,7 +107,6 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     _positionStream?.cancel();
     _facilityTapCancelable?.cancel();
 
-    // Clean up annotations
     unawaited(_polylineManager?.deleteAll());
     unawaited(_facilityManager?.deleteAll());
     unawaited(_userMarkerManager?.deleteAll());
@@ -120,27 +115,14 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     super.dispose();
   }
 
-  // onMapCreated untuk MapWidget (mapbox_maps_flutter)
   Future<void> _onMapCreated(MapboxMap controller) async {
     _mapboxMapController = controller;
 
-    // NOTE: gestures are enabled by default in mapbox_maps_flutter.
-    // If you need to tweak gesture settings, ensure your sdk version supports the
-    // Gestures API; otherwise remove/update this block. To keep compatibility we
-    // omit calling a GestureSettings constructor here which may not exist on some
-    // versions of the package.
+    _facilityManager = await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _polylineManager = await _mapboxMapController!.annotations.createPolylineAnnotationManager();
+    _userMarkerManager = await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _destinationManager = await _mapboxMapController!.annotations.createPointAnnotationManager();
 
-    // Create managers
-    _facilityManager =
-        await _mapboxMapController!.annotations.createPointAnnotationManager();
-    _polylineManager =
-        await _mapboxMapController!.annotations.createPolylineAnnotationManager();
-    _userMarkerManager =
-        await _mapboxMapController!.annotations.createPointAnnotationManager();
-    _destinationManager =
-        await _mapboxMapController!.annotations.createPointAnnotationManager();
-
-    // Handle taps on facility markers
     _facilityTapCancelable = _facilityManager!.tapEvents(
       onTap: (annotation) {
         final coords = annotation.geometry.coordinates;
@@ -159,14 +141,12 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
       },
     );
 
-    // If we already have data, render them
     unawaited(_updateFacilityAnnotations());
   }
 
   void _onFacilitySelected(Hospital facility) async {
     setState(() => _selectedFacility = facility);
 
-    // Fly to destination
     await _mapboxMapController?.flyTo(
       CameraOptions(
         center: Point(coordinates: Position(facility.location.longitude, facility.location.latitude)),
@@ -175,7 +155,6 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
       MapAnimationOptions(duration: 900, startDelay: 0),
     );
 
-    // Add/Update destination marker explicitly
     await _addOrUpdateDestinationMarker(
       Point(coordinates: Position(facility.location.longitude, facility.location.latitude)),
     );
@@ -240,22 +219,22 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
 
       final bearing = (position.heading.isNaN) ? 0.0 : position.heading;
 
-      // Add/Update user marker
       await _addOrUpdateUserMarker(
         Point(coordinates: Position(position.longitude, position.latitude)),
         bearing,
       );
 
-      // camera follow with tilt & bearing for navigation feel
-      _mapboxMapController?.easeTo(
-        CameraOptions(
-          center: Point(coordinates: Position(position.longitude, position.latitude)),
-          zoom: 16.5,
-          pitch: 60.0,
-          bearing: bearing,
-        ),
-        MapAnimationOptions(duration: 800),
-      );
+      if (_currentMode == NavigationMode.normal) {
+        _mapboxMapController?.easeTo(
+          CameraOptions(
+            center: Point(coordinates: Position(position.longitude, position.latitude)),
+            zoom: 16.5,
+            pitch: 60.0,
+            bearing: bearing,
+          ),
+          MapAnimationOptions(duration: 800),
+        );
+      }
 
       if (isFirstUpdate) {
         setState(() => _loadingMessage = "Mencari fasilitas terdekat...");
@@ -278,10 +257,7 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     );
 
     try {
-      // Use create + update for user marker; we don't keep a field reference
-      // because the manager keeps track of it. This avoids an unused-field lint.
       await _userMarkerManager!.create(opts);
-      // We don't need to store `existing` in a field unless you need to update it later.
     } catch (e) {
       if (kDebugMode) debugPrint('User marker create/update error: $e');
     }
@@ -297,7 +273,6 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     );
 
     try {
-      // Keep a single destination marker
       await _destinationManager!.deleteAll();
       await _destinationManager!.create(opts);
     } catch (e) {
@@ -311,7 +286,7 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
     await _fetchNearbyFacilities(location);
     if (!mounted) return;
     _updateDistancesAndSort();
-    _applyFilter(); // initial filter
+    _applyFilter();
     setState(() => _isLoading = false);
   }
 
@@ -431,7 +406,7 @@ out center meta;
           coordinates: Position(facility.location.longitude, facility.location.latitude),
         ),
         iconSize: 1.0,
-        image: _facilityIconBytes, // if null, Mapbox default icon used
+        image: _facilityIconBytes,
       );
     }).toList();
 
@@ -460,7 +435,6 @@ out center meta;
       }
     });
 
-    // update markers on map
     unawaited(_updateFacilityAnnotations());
   }
 
@@ -491,10 +465,8 @@ out center meta;
             .map((c) => Position((c[0] as num).toDouble(), (c[1] as num).toDouble()))
             .toList();
 
-        // Hapus polyline lama supaya tidak double
         await _polylineManager!.deleteAll();
 
-        // Tambah polyline baru (LineString required)
         await _polylineManager!.create(
           PolylineAnnotationOptions(
             geometry: LineString(coordinates: coords),
@@ -503,12 +475,15 @@ out center meta;
           ),
         );
 
-        // Add/Update explicit destination marker
         await _addOrUpdateDestinationMarker(
           Point(coordinates: Position(destLng, destLat)),
         );
 
-        // Center camera to user with nav style (tilt and bearing)
+        setState(() {
+          _selectedFacility = facility;
+          _currentMode = NavigationMode.navigation;
+        });
+
         final bearing = _currentPosition?.heading ?? 0.0;
         await _mapboxMapController!.easeTo(
           CameraOptions(
@@ -519,9 +494,6 @@ out center meta;
           ),
           MapAnimationOptions(duration: 900),
         );
-
-        // store selected facility for UI
-        setState(() => _selectedFacility = facility);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -538,15 +510,57 @@ out center meta;
     }
   }
 
+  void _exitNavigationMode() {
+    setState(() {
+      _currentMode = NavigationMode.normal;
+      _selectedFacility = null;
+    });
+    _polylineManager?.deleteAll();
+    _destinationManager?.deleteAll();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Fasilitas Kesehatan Terdekat"),
-        backgroundColor: primaryColor,
-        foregroundColor: whiteColor,
-        actions: [
+      appBar: _buildAppBar(),
+      body: WillPopScope(
+        onWillPop: () async {
+          if (_currentMode == NavigationMode.navigation) {
+            _exitNavigationMode();
+            return false;
+          }
+          return true;
+        },
+        child: Stack(
+          children: [
+            _buildMap(),
+            if (_currentMode == NavigationMode.normal) ...[
+              Positioned(top: 10, left: 10, right: 10, child: _buildFilterChips()),
+              if (_filteredFacilities.isNotEmpty) _buildFacilityListSheet(),
+            ],
+            if (_currentMode == NavigationMode.navigation) _buildNavigationUI(),
+            if (_isLoading) _buildLoadingOverlay(),
+          ],
+        ),
+      ),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(_currentMode == NavigationMode.navigation ? "Navigasi" : "Fasilitas Kesehatan Terdekat"),
+      backgroundColor: primaryColor,
+      foregroundColor: whiteColor,
+      leading: _currentMode == NavigationMode.navigation
+          ? IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _exitNavigationMode,
+            )
+          : null,
+      actions: [
+        if (_currentMode == NavigationMode.normal)
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Data',
@@ -556,31 +570,7 @@ out center meta;
               unawaited(_fetchAndProcessFacilities(base));
             },
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          _buildMap(),
-          Positioned(top: 10, left: 10, right: 10, child: _buildFilterChips()),
-          if (_filteredFacilities.isNotEmpty) _buildFacilityListSheet(),
-          if (_isLoading) _buildLoadingOverlay(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: primaryColor,
-        child: const Icon(Icons.my_location, color: whiteColor),
-        onPressed: () {
-          final pos = _currentPosition;
-          final target = pos != null
-              ? Point(coordinates: Position(pos.longitude, pos.latitude))
-              : Point(coordinates: Position(_defaultLocation.longitude, _defaultLocation.latitude));
-
-          _mapboxMapController?.flyTo(
-            CameraOptions(center: target, zoom: pos != null ? 16.0 : 15.0),
-            MapAnimationOptions(duration: 1000),
-          );
-        },
-      ),
+      ],
     );
   }
 
@@ -626,6 +616,92 @@ out center meta;
         selectedColor: primaryColor,
         labelStyle: TextStyle(color: isSelected ? Colors.white : textPrimaryColor),
         showCheckmark: false,
+      ),
+    );
+  }
+
+  Widget _buildNavigationUI() {
+    if (_selectedFacility == null) return const SizedBox.shrink();
+    
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [strongShadow],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _getIconForFacilityType(_selectedFacility!.type),
+                  color: _getColorForFacilityType(_selectedFacility!.type),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedFacility!.name,
+                        style: bodyMediumTextStyle.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (_selectedFacility!.distanceInKm != null)
+                        Text(
+                          '${_selectedFacility!.distanceInKm!.toStringAsFixed(1)} km',
+                          style: bodySmallTextStyle.copyWith(
+                            color: textSecondaryColor,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _exitNavigationMode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Selesai'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: primaryColor, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Mode navigasi aktif. Anda dapat zoom, rotate, dan navigasi peta secara bebas.',
+                      style: bodySmallTextStyle.copyWith(color: primaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -686,31 +762,9 @@ out center meta;
   }
 
   Widget _buildFacilityListItem(Hospital facility) {
-    IconData iconData;
-    Color iconColor;
-    String typeName;
-
-    switch (facility.type) {
-      case FacilityType.hospital:
-        iconData = Icons.local_hospital;
-        iconColor = hospitalColor;
-        typeName = "Rumah Sakit";
-        break;
-      case FacilityType.clinic:
-        iconData = Icons.medical_services;
-        iconColor = clinicColor;
-        typeName = "Klinik / Puskesmas";
-        break;
-      case FacilityType.pharmacy:
-        iconData = Icons.local_pharmacy;
-        iconColor = pharmacyColor;
-        typeName = "Apotek";
-        break;
-      default:
-        iconData = Icons.location_on;
-        iconColor = Colors.grey;
-        typeName = "Fasilitas Kesehatan";
-    }
+    final iconData = _getIconForFacilityType(facility.type);
+    final iconColor = _getColorForFacilityType(facility.type);
+    final typeName = _getTypeNameForFacilityType(facility.type);
 
     final isSelected = _selectedFacility?.name == facility.name &&
         _selectedFacility?.location == facility.location;
@@ -754,13 +808,72 @@ out center meta;
               IconButton(
                 icon: const Icon(Icons.directions, color: primaryColor),
                 onPressed: () => _startNavigation(facility),
-                tooltip: 'Navigasi (in-app)',
+                tooltip: 'Navigasi',
               ),
             const Icon(Icons.chevron_right, color: Colors.grey),
           ],
         ),
         onTap: () => _onFacilitySelected(facility),
       ),
+    );
+  }
+
+  IconData _getIconForFacilityType(FacilityType type) {
+    switch (type) {
+      case FacilityType.hospital:
+        return Icons.local_hospital;
+      case FacilityType.clinic:
+        return Icons.medical_services;
+      case FacilityType.pharmacy:
+        return Icons.local_pharmacy;
+      default:
+        return Icons.location_on;
+    }
+  }
+
+  Color _getColorForFacilityType(FacilityType type) {
+    switch (type) {
+      case FacilityType.hospital:
+        return hospitalColor;
+      case FacilityType.clinic:
+        return clinicColor;
+      case FacilityType.pharmacy:
+        return pharmacyColor;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getTypeNameForFacilityType(FacilityType type) {
+    switch (type) {
+      case FacilityType.hospital:
+        return "Rumah Sakit";
+      case FacilityType.clinic:
+        return "Klinik / Puskesmas";
+      case FacilityType.pharmacy:
+        return "Apotek";
+      default:
+        return "Fasilitas Kesehatan";
+    }
+  }
+
+  Widget? _buildFloatingActionButton() {
+    if (_currentMode == NavigationMode.navigation) return null;
+    
+    return FloatingActionButton(
+      backgroundColor: primaryColor,
+      child: const Icon(Icons.my_location, color: whiteColor),
+      onPressed: () {
+        final pos = _currentPosition;
+        final target = pos != null
+            ? Point(coordinates: Position(pos.longitude, pos.latitude))
+            : Point(coordinates: Position(_defaultLocation.longitude, _defaultLocation.latitude));
+
+        _mapboxMapController?.flyTo(
+          CameraOptions(center: target, zoom: pos != null ? 16.0 : 15.0),
+          MapAnimationOptions(duration: 1000),
+        );
+      },
     );
   }
 
