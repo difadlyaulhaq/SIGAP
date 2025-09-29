@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +10,6 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
-
 import '../models/hospital.dart';
 
 const Color primaryColor = Color(0xFF4A90E2);
@@ -91,14 +89,15 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
         final ByteData bytes = await rootBundle.load(path);
         return bytes.buffer.asUint8List();
       } catch (_) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('Asset not found: $path (using default icon)');
+        }
         return null;
       }
     }
 
     final facility = await load('assets/marker_icon (1).png');
-    final user = await load('');
+    final user = await load('assets/user_marker (2).png');
     final dest = await load('assets/destination_marker (3) (1).png');
 
     if (!mounted) return;
@@ -125,14 +124,14 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   Future<void> _onMapCreated(MapboxMap controller) async {
     _mapboxMapController = controller;
 
-    _facilityManager = await _mapboxMapController!.annotations
-        .createPointAnnotationManager();
-    _polylineManager = await _mapboxMapController!.annotations
-        .createPolylineAnnotationManager();
-    _userMarkerManager = await _mapboxMapController!.annotations
-        .createPointAnnotationManager();
-    _destinationManager = await _mapboxMapController!.annotations
-        .createPointAnnotationManager();
+    _facilityManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _polylineManager =
+        await _mapboxMapController!.annotations.createPolylineAnnotationManager();
+    _userMarkerManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
+    _destinationManager =
+        await _mapboxMapController!.annotations.createPointAnnotationManager();
 
     _facilityTapCancelable = _facilityManager!.tapEvents(
       onTap: (annotation) {
@@ -244,45 +243,44 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
       distanceFilter: 3,
     );
 
-    _positionStream =
-        geo.Geolocator.getPositionStream(
-          locationSettings: locationSettings,
-        ).listen((geo.Position position) async {
-          if (!mounted) return;
-          final isFirstUpdate = _currentPosition == null;
-          _currentPosition = position;
+    _positionStream = geo.Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((geo.Position position) async {
+      if (!mounted) return;
+      final isFirstUpdate = _currentPosition == null;
+      _currentPosition = position;
 
-          final bearing = (position.heading.isNaN) ? 0.0 : position.heading;
+      final bearing = (position.heading.isNaN) ? 0.0 : position.heading;
 
-          await _addOrUpdateUserMarker(
-            Point(coordinates: Position(position.longitude, position.latitude)),
-            bearing,
-          );
+      await _addOrUpdateUserMarker(
+        Point(coordinates: Position(position.longitude, position.latitude)),
+        bearing,
+      );
 
-          if (_currentMode == NavigationMode.normal) {
-            _mapboxMapController?.easeTo(
-              CameraOptions(
-                center: Point(
-                  coordinates: Position(position.longitude, position.latitude),
-                ),
-                zoom: 16.5,
-                pitch: 60.0,
-                bearing: bearing,
-              ),
-              MapAnimationOptions(duration: 800),
-            );
-          }
+      if (_currentMode == NavigationMode.normal) {
+        _mapboxMapController?.easeTo(
+          CameraOptions(
+            center: Point(
+              coordinates: Position(position.longitude, position.latitude),
+            ),
+            zoom: 16.5,
+            pitch: 60.0,
+            bearing: bearing,
+          ),
+          MapAnimationOptions(duration: 800),
+        );
+      }
 
-          if (isFirstUpdate) {
-            setState(() => _loadingMessage = "Mencari fasilitas terdekat...");
-            await _fetchAndProcessFacilities(
-              LatLng(position.latitude, position.longitude),
-            );
-          } else {
-            _updateDistancesAndSort();
-            if (mounted) setState(() {});
-          }
-        });
+      if (isFirstUpdate) {
+        setState(() => _loadingMessage = "Mencari fasilitas terdekat...");
+        await _fetchAndProcessFacilities(
+          LatLng(position.latitude, position.longitude),
+        );
+      } else {
+        _updateDistancesAndSort();
+        if (mounted) setState(() {});
+      }
+    });
   }
 
   Future<void> _addOrUpdateUserMarker(Point geometry, double bearing) async {
@@ -330,8 +328,7 @@ class _HospitalNearbyPageState extends State<HospitalNearbyPage>
   }
 
   Future<void> _fetchNearbyFacilities(LatLng location) async {
-    final query =
-        '''
+    final query = '''
 [out:json][timeout:25];
 (
   node["amenity"~"hospital|clinic|pharmacy|doctors"](around:5000,${location.latitude},${location.longitude});
@@ -365,8 +362,7 @@ out center meta;
             })
             .map<Hospital>((e) {
               final tags = (e['tags'] as Map?)?.cast<String, dynamic>() ?? {};
-              final String name =
-                  tags['name'] ??
+              final String name = tags['name'] ??
                   tags['brand'] ??
                   tags['operator'] ??
                   'Fasilitas Kesehatan';
@@ -433,8 +429,7 @@ out center meta;
     if (_currentPosition == null || !mounted) return;
 
     for (final facility in _allFacilities) {
-      facility.distanceInKm =
-          geo.Geolocator.distanceBetween(
+      facility.distanceInKm = geo.Geolocator.distanceBetween(
             _currentPosition!.latitude,
             _currentPosition!.longitude,
             facility.location.latitude,
@@ -485,9 +480,8 @@ out center meta;
       if (_activeFilter == FacilityType.unknown) {
         _filteredFacilities = List.from(_allFacilities);
       } else {
-        _filteredFacilities = _allFacilities
-            .where((f) => f.type == _activeFilter)
-            .toList();
+        _filteredFacilities =
+            _allFacilities.where((f) => f.type == _activeFilter).toList();
       }
       if (_selectedFacility != null &&
           !_filteredFacilities.contains(_selectedFacility)) {
@@ -520,9 +514,8 @@ out center meta;
         'https://api.mapbox.com/directions/v5/mapbox/driving/$userLng,$userLat;$destLng,$destLat?geometries=geojson&overview=full&steps=false&access_token=$tokenEncoded';
 
     try {
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
+      final response =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final coords = (data['routes'][0]['geometry']['coordinates'] as List)
@@ -872,8 +865,7 @@ out center meta;
     final iconColor = _getColorForFacilityType(facility.type);
     final typeName = _getTypeNameForFacilityType(facility.type);
 
-    final isSelected =
-        _selectedFacility?.name == facility.name &&
+    final isSelected = _selectedFacility?.name == facility.name &&
         _selectedFacility?.location == facility.location;
 
     return Container(
@@ -968,6 +960,7 @@ out center meta;
     if (_currentMode == NavigationMode.navigation) return null;
 
     return FloatingActionButton(
+      heroTag: 'hospitalScreenFab', // FIX: Menambahkan heroTag unik untuk mencegah crash
       backgroundColor: primaryColor,
       child: const Icon(Icons.my_location, color: whiteColor),
       onPressed: () {
@@ -999,7 +992,8 @@ out center meta;
             const CircularProgressIndicator(color: primaryColor),
             const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(12),

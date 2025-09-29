@@ -64,7 +64,7 @@ class EmergencyQrScreen extends StatelessWidget {
                      Expanded(
                        child: Text(
                          'Saran: Ambil screenshot halaman ini dan jadikan wallpaper layar kunci Anda.',
-                         style: bodyMediumTextStyle.copyWith(color: warningColor.withOpacity(0.9)),
+                         style: bodyMediumTextStyle.copyWith(color: warningColor),
                        ),
                      ),
                    ],

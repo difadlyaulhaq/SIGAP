@@ -67,7 +67,7 @@ class ArticlesScreen extends StatelessWidget {
   Widget _buildArticleCard(BuildContext context, Article article) {
     return Card(
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.05),
+      shadowColor: Colors.black,
       shape: RoundedRectangleBorder(borderRadius: theme.mediumRadius),
       color: theme.cardColor,
       child: InkWell(

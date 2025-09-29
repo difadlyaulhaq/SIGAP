@@ -1,3 +1,5 @@
+// lib/pages/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rescuein/bloc/article/article_bloc.dart';
@@ -15,10 +17,7 @@ import 'package:rescuein/pages/login_screen.dart';
 import 'package:rescuein/services/news_api_service.dart';
 import 'package:rescuein/services/session_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// FIX: Tambahkan import untuk AuthState dan turunannya
 import 'package:rescuein/bloc/auth/auth_state.dart';
-
 import '../theme/theme.dart' as theme;
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
@@ -62,9 +61,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // STRUKTUR YANG LEBIH BAIK:
-    // 1. MultiBlocProvider untuk menyediakan semua BLoC yang dibutuhkan halaman ini.
-    // 2. BlocListener untuk mereaksi perubahan state AuthBloc.
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -80,10 +76,8 @@ class HomeScreen extends StatelessWidget {
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            // Panggil fetch data profil setelah user terautentikasi
             context.read<ProfileBloc>().add(FetchProfileData());
           } else if (state is AuthUnauthenticated) {
-            // Arahkan ke login jika sesi berakhir saat di halaman ini
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (context) => const LoginScreen()),
               (Route<dynamic> route) => false,
@@ -177,6 +171,7 @@ class _HomeScreenViewState extends State<_HomeScreenView>
             ],
           ),
           child: FloatingActionButton(
+            heroTag: 'homeScreenFab', // FIX: Menambahkan heroTag unik untuk mencegah crash
             onPressed: () => _safeNavigate('/detect'),
             backgroundColor: Colors.transparent,
             elevation: 0,
