@@ -60,20 +60,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         setState(() {
           _animationCompleted = true;
         });
-
-        // Jika setelah animasi selesai belum ada state auth yang masuk,
-        // kemungkinan besar user tidak login. Arahkan ke LoginScreen.
-        final currentState = context.read<AuthBloc>().state;
-        if (currentState is AuthInitial && !_hasNavigated) {
-            _navigateToScreen(const LoginScreen());
-        }
       }
     });
-
-    // HAPUS Pemicu event karena BLoC sudah bekerja otomatis dari main.dart
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   context.read<AuthBloc>().add(AuthCheckRequested());
-    // });
   }
 
   @override
@@ -109,10 +97,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     if (!mounted || _hasNavigated) return;
 
     if (state is AuthAuthenticated) {
+      print('🏠 Navigating to HomeScreen');
       _navigateToScreen(const HomeScreen());
     } else if (state is AuthUnauthenticated) {
+      print('🔑 Navigating to LoginScreen');
       _navigateToScreen(const LoginScreen());
     } else if (state is AuthFailure) {
+      print('❌ Auth failed, clearing session and going to login');
       try {
         await SessionManager.instance.clearSession();
       } catch (e) {
@@ -140,10 +131,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       backgroundColor: surfaceColor,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          // Jangan handle state Initial, tunggu state konkrit (Authenticated/Unauthenticated)
-          if (state is! AuthInitial) {
-             print('Splash: Auth state changed to ${state.runtimeType}');
-             _handleAuthState(state);
+          print('🔄 Splash: Auth state changed to ${state.runtimeType}');
+          
+          // Handle semua state kecuali AuthInitial dan AuthLoading
+          if (state is! AuthInitial && state is! AuthLoading) {
+            _handleAuthState(state);
           }
         },
         child: SafeArea(
@@ -301,6 +293,38 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                           fontWeight: FontWeight.w300,
                                         ),
                                       ),
+                                      
+                                      // Tambahan: Offline indicator jika ada data cached
+                                      if (state is AuthUnauthenticated) ...[
+                                        SizedBox(height: screenHeight * 0.01),
+                                        FutureBuilder<bool>(
+                                          future: SessionManager.instance.isLoggedIn(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.data == true) {
+                                              return Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.offline_pin,
+                                                    color: whiteColor.withOpacity(0.6),
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    "Data offline tersedia",
+                                                    style: TextStyle(
+                                                      color: whiteColor.withOpacity(0.6),
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w300,
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            }
+                                            return const SizedBox.shrink();
+                                          },
+                                        ),
+                                      ],
                                     ],
                                   );
                                 },

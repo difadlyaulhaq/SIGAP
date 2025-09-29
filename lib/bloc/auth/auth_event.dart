@@ -1,9 +1,11 @@
-part of 'auth_bloc.dart'; // <-- HANYA BOLEH ADA DIRECTIVE INI
+// lib/bloc/auth/auth_event.dart
 
-// SEMUA IMPORT DIHAPUS DARI FILE INI
+part of 'auth_bloc.dart';
 
 @immutable
 abstract class AuthEvent {}
+
+class AuthCheckRequested extends AuthEvent {}
 
 class _AuthUserChanged extends AuthEvent {
   final User? user;
@@ -26,6 +28,7 @@ class AuthSignupRequested extends AuthEvent {
   final String alamat;
   final String golonganDarah;
   final String kontakDarurat;
+  // FIX: Ubah tipe data menjadi List<String>
   final List<String> alergi;
   final List<String> riwayatPenyakit;
   final List<String> obatRutin;
@@ -49,3 +52,7 @@ class AuthSignupRequested extends AuthEvent {
 }
 
 class AuthLogoutRequested extends AuthEvent {}
+
+class AuthRefreshRequested extends AuthEvent {}
+
+class AuthRestoreOfflineSession extends AuthEvent {}

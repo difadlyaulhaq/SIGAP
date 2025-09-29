@@ -1,8 +1,10 @@
+// lib/bloc/auth/auth_repository.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rescuein/models/medical_history_model.dart';
 import 'package:rescuein/models/user_model.dart';
-import 'package:uuid/uuid.dart'; // FIX 1: Tambahkan import yang hilang
+import 'package:uuid/uuid.dart';
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
@@ -25,12 +27,12 @@ class AuthRepository {
     required String alamat,
     required String golonganDarah,
     required String kontakDarurat,
+    // FIX: Tipe data disesuaikan menjadi List<String>
     required List<String> alergi,
     required List<String> riwayatPenyakit,
     required List<String> obatRutin,
     required String catatanTambahan,
   }) async {
-    // ... (kode signUp Anda tidak perlu diubah)
     try {
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -78,8 +80,7 @@ class AuthRepository {
     required String golonganDarah,
     required String kontakDarurat,
   }) async {
-    // ... (kode _saveUserData Anda tidak perlu diubah)
-     await _firestore.collection('users').doc(userId).set({
+    await _firestore.collection('users').doc(userId).set({
       'uid': userId,
       'email': email,
       'nama': nama,
@@ -99,7 +100,6 @@ class AuthRepository {
     required List<String> obatRutin,
     required String catatanTambahan,
   }) async {
-    // ... (kode _saveMedicalHistory Anda tidak perlu diubah)
     await _firestore.collection('medicalHistories').doc(userId).set({
       'alergi': alergi,
       'riwayatPenyakit': riwayatPenyakit,
@@ -108,9 +108,10 @@ class AuthRepository {
     });
   }
 
-  Future<UserModel> getUserData(String userId) async {
-    // ... (kode getUserData Anda tidak perlu diubah)
-     try {
+  // FIX: Tambahkan parameter opsional {bool forceOnline = false}
+  Future<UserModel> getUserData(String userId, {bool forceOnline = false}) async {
+    // Anda bisa menambahkan logika caching di sini menggunakan `forceOnline`
+    try {
       final doc = await _firestore.collection('users').doc(userId).get();
       if (doc.exists) {
         return UserModel.fromFirestore(doc);
@@ -123,9 +124,9 @@ class AuthRepository {
   }
 
   Future<MedicalHistoryModel> getMedicalHistory(String userId) async {
-    // ... (kode getMedicalHistory Anda tidak perlu diubah)
     try {
-      final doc = await _firestore.collection('medicalHistories').doc(userId).get();
+      final doc =
+          await _firestore.collection('medicalHistories').doc(userId).get();
       if (doc.exists) {
         return MedicalHistoryModel.fromFirestore(doc);
       } else {
@@ -144,18 +145,15 @@ class AuthRepository {
       if (userDoc.exists && userDoc.data()!.containsKey('emergencyId')) {
         return userDoc.data()!['emergencyId'] as String;
       } else {
-        // FIX 2: Ganti 'const' menjadi 'final'
         final uuid = Uuid();
         final newEmergencyId = uuid.v4();
-        
         await userDocRef.update({'emergencyId': newEmergencyId});
-        
         return newEmergencyId;
       }
     } catch (e) {
       throw Exception('Gagal mendapatkan atau membuat Emergency ID: $e');
     }
-  } // <-- FIX 3: Tambahkan kurung kurawal penutup yang hilang
+  }
 
   Future<void> updateMedicalHistory({
     required String userId,
@@ -183,4 +181,26 @@ class AuthRepository {
   Future<void> logOut() async {
     await _firebaseAuth.signOut();
   }
-}
+  
+  // FIX: Tambahkan metode-metode yang hilang yang dipanggil oleh BLoC
+  Future<void> autoSyncIfNeeded() async {
+    // TODO: Implementasikan logika sinkronisasi data otomatis di sini
+    print("Auto-syncing data if needed...");
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
+  Future<bool> hasValidOfflineSession() async {
+    // TODO: Implementasikan logika pengecekan sesi offline di sini
+    print("Checking for valid offline session...");
+    return false; // Ganti dengan logika sesungguhnya
+  }
+
+  Future<void> refreshUserData() async {
+    // TODO: Implementasikan logika untuk refresh data pengguna dari server
+    print("Refreshing user data...");
+    final user = currentUser;
+    if (user != null) {
+      await getUserData(user.uid, forceOnline: true);
+    }
+  }
+} // FIX: Hapus satu '}' berlebih dari sini

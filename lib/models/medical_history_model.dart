@@ -17,7 +17,6 @@ class MedicalHistoryModel {
   factory MedicalHistoryModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return MedicalHistoryModel(
-      // Menggunakan List.from untuk konversi yang aman dari List<dynamic>
       alergi: List<String>.from(data['alergi'] ?? []),
       riwayatPenyakit: List<String>.from(data['riwayatPenyakit'] ?? []),
       obatRutin: List<String>.from(data['obatRutin'] ?? []),
@@ -25,8 +24,27 @@ class MedicalHistoryModel {
     );
   }
 
-  // TAMBAHKAN METHOD INI 👇
-  // Method untuk mengubah instance menjadi Map agar bisa disimpan ke Firestore
+  // ==> [FIX] TAMBAHKAN FACTORY CONSTRUCTOR INI <==
+  // Factory constructor untuk membuat instance dari JSON map (dari SharedPreferences)
+  factory MedicalHistoryModel.fromJson(Map<String, dynamic> json) {
+    return MedicalHistoryModel(
+      alergi: List<String>.from(json['alergi'] ?? []),
+      riwayatPenyakit: List<String>.from(json['riwayatPenyakit'] ?? []),
+      obatRutin: List<String>.from(json['obatRutin'] ?? []),
+      catatanTambahan: json['catatanTambahan'] ?? '',
+    );
+  }
+
+  factory MedicalHistoryModel.empty() {
+    return MedicalHistoryModel(
+      alergi: [],
+      riwayatPenyakit: [],
+      obatRutin: [],
+      catatanTambahan: 'Data medis tidak tersedia saat offline.',
+    );
+  }
+
+  // Method untuk mengubah instance menjadi Map (JSON)
   Map<String, dynamic> toJson() {
     return {
       'alergi': alergi,
